@@ -1,0 +1,14 @@
+{
+  "name": "AC Mode",
+  "stat_t": "~acMode",
+  "uniq_id": "{{ device_id }}-acMode",
+  "value_template": "{% raw %}{{ 'Normal' if value=='1' else ('Never Off' if value=='2' else ('Auto Off' if value=='3' else 'Unknown')) }}{% endraw %}",
+  "dev": {
+    "identifiers": ["{{ device_id }}"],
+    "manufacturer": "Zendure",
+    "model": "Ace",
+    "name": "Ace 1500",
+    "sw_version": "{{ fw_version }}"
+  },
+  "~": "solarflow-hub/{{ device_id }}/telemetry/"
+}

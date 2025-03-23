@@ -1,0 +1,21 @@
+{
+  "name": "AC Auto Off Delay",
+  "cmd_t": "iot/{{ product_id }}/{{ device_id }}/properties/write",
+  "cmd_tpl": "{\"properties\": {\"acDelay\": {% raw %}{{ value }}{% endraw %} }}",
+  "stat_t": "~acDelay",
+  "value_template": "{% raw %}{{ value | round(0) | int }} {% endraw %}",
+  "uniq_id": "{{ device_id }}-acDelay",
+  "unit_of_meas": "s",
+  "max": 120,
+  "min": 1,
+  "step": 1,
+  "mode": "box",
+  "dev": {
+    "identifiers": ["{{ device_id }}"],
+    "manufacturer": "Zendure",
+    "model": "Ace",
+    "name": "Ace 1500",
+    "sw_version": "{{ fw_version }}"
+  },
+  "~": "solarflow-hub/{{ device_id }}/telemetry/"
+}

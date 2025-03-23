@@ -141,8 +141,8 @@ class Solarflow:
 
     def pushHomeassistantConfig(self):
         log.info("Publishing Homeassistant templates...")
-        hatemplates = [f for f in pathlib.Path().glob("homeassistant/*.json")]
-        environment = Environment(loader=FileSystemLoader("homeassistant/"), undefined=DebugUndefined)
+        hatemplates = [f for f in pathlib.Path().glob("homeassistant/hub/*.json")]
+        environment = Environment(loader=FileSystemLoader("homeassistant/hub/"), undefined=DebugUndefined)
 
         for hatemplate in hatemplates:
             template = environment.get_template(hatemplate.name)
@@ -157,7 +157,7 @@ class Solarflow:
                 hacfg = template.render(product_id=self.productId, device_id=self.deviceId, fw_version=self.fwVersion)
                 self.client.publish(f'homeassistant/{cfg_type}/solarflow-hub-{self.deviceId}-{cfg_name}/config',hacfg,retain=True)
             #log.info(hacfg)
-        log.info(f"Published {len(hatemplates)} Homeassistant templates.")
+        log.info(f"Published {len(hatemplates)} Homeassistant templates for Hub.")
 
     def updSolarInput(self, value:int):
         self.solarInputValues.add(value)
@@ -397,8 +397,10 @@ class Solarflow:
                         sn = pack.pop('sn')
                         for prop, val in pack.items():
                             self.client.publish(f'solarflow-hub/{device_id}/telemetry/batteries/{sn}/{prop}',val)
+                            
 
-        if msg.topic.startswith('solarflow-hub') and msg.payload:
+        
+        if msg.topic.startswith(f'solarflow-hub/{self.deviceId}') and msg.payload:
             # check if we got regular updates on solarInputPower
             # if we haven't received any update on solarInputPower for 120s
             # we assume it's not producing and inject 0

@@ -1,0 +1,19 @@
+{
+  "name": "Charge via Grid",
+  "cmd_t": "iot/{{ product_id }}/{{ device_id }}/properties/write",
+  "stat_t": "~acMode",
+  "uniq_id": "{{ device_id }}-acMode",
+  "dev_cla": "switch",
+  "payload_on": "{\"properties\": {\"acMode\": 1 }}",
+  "payload_off": "{\"properties\": {\"acMode\": 2 }}",
+  "state_on": 1,
+  "state_off": 2,
+  "dev": {
+    "identifiers": ["{{ device_id }}"],
+    "manufacturer": "Zendure",
+    "model": "Solarflow",
+    "name": "Solarflow Hub",
+    "sw_version": "{{ fw_version }}"
+  },
+  "~": "solarflow-hub/{{ device_id }}/telemetry/"
+}

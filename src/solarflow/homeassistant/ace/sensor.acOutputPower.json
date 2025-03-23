@@ -1,0 +1,15 @@
+{
+  "name": "AC Output Power",
+  "stat_t": "~acOutputPower",
+  "uniq_id": "{{ device_id }}-acOutputPower",
+  "dev_cla": "power",
+  "unit_of_meas": "W",
+  "dev": {
+    "identifiers": ["{{ device_id }}"],
+    "manufacturer": "Zendure",
+    "model": "Ace",
+    "name": "Ace 1500",
+    "sw_version": "{{ fw_version }}"
+  },
+  "~": "solarflow-hub/{{ device_id }}/telemetry/"
+}

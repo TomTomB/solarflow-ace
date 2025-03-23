@@ -1,3 +1,4 @@
+import json
 import random, time, logging, sys, getopt, os
 from datetime import datetime, timedelta
 from functools import reduce
@@ -8,6 +9,7 @@ import requests
 import configparser
 import math
 import solarflow
+import ace
 import dtus
 import smartmeters
 from utils import RepeatedTimer, str2bool
@@ -166,6 +168,8 @@ def on_message(client, userdata, msg):
     hub.handleMsg(msg)
     dtu = userdata["dtu"]
     dtu.handleMsg(msg)
+    ace = userdata["ace"]
+    ace.handleMsg(msg)
 
     # handle own messages (control parameters)
     if msg.topic.startswith('solarflow-hub') and "control" in msg.topic and msg.payload:
@@ -543,6 +547,7 @@ def updateConfigParams(client):
 
 def run():
     hub_opts = getOpts(solarflow.Solarflow)
+    ace_opts = getOpts(ace.Ace)
     dtuType = getattr(dtus, DTU_TYPE)
     dtu_opts = getOpts(dtuType)
     smtType = getattr(smartmeters, SMT_TYPE)
@@ -574,10 +579,11 @@ def run():
 
     
     hub = solarflow.Solarflow(client=client,callback=limit_callback,**hub_opts)
+    aceUnit = ace.Ace(client=client,callback=limit_callback,**ace_opts)
     dtu = dtuType(client=client,ac_limit=MAX_INVERTER_LIMIT,callback=limit_callback,**dtu_opts)
     smt = smtType(client=client,callback=limit_callback, **smt_opts)
 
-    client.user_data_set({"hub":hub, "dtu":dtu, "smartmeter":smt})
+    client.user_data_set({"hub":hub, "dtu":dtu, "smartmeter":smt, "ace":aceUnit})
 
     # switch the callback function for received MQTT messages to the delegating function
     client.on_message = on_message
@@ -586,6 +592,7 @@ def run():
 
     # subscribe Hub, DTU and Smartmeter so that they can react on received messages
     hub.subscribe()
+    aceUnit.subscribe()
     dtu.subscribe()
     smt.subscribe()
 

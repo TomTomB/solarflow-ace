@@ -1,0 +1,21 @@
+{
+  "name": "Charge via Grid Input Limit",
+  "cmd_t": "iot/{{ product_id }}/{{ device_id }}/properties/write",
+  "cmd_tpl": "{\"properties\": {\"inputLimit\": {% raw %}{{ value }}{% endraw %} }}",
+  "stat_t": "~inputLimit",
+  "value_template": "{% raw %}{{ value | round(0) | int }} {% endraw %}",
+  "uniq_id": "{{ device_id }}-inputLimit",
+  "unit_of_meas": "W",
+  "max": 900,
+  "min": 0,
+  "step": 1,
+  "mode": "box",
+  "dev": {
+    "identifiers": ["{{ device_id }}"],
+    "manufacturer": "Zendure",
+    "model": "Solarflow",
+    "name": "Solarflow Hub",
+    "sw_version": "{{ fw_version }}"
+  },
+  "~": "solarflow-hub/{{ device_id }}/telemetry/"
+}

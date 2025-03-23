@@ -1,0 +1,14 @@
+{
+  "name": "Battery Charge Mode",
+  "stat_t": "~acMode",
+  "uniq_id": "{{ device_id }}-acMode",
+  "value_template": "{% raw %}{{ 'Grid' if value=='1' else ('Solar' if value=='2' else 'Unknown') }}{% endraw %}",
+  "dev": {
+    "identifiers": ["{{ device_id }}"],
+    "manufacturer": "Zendure",
+    "model": "Solarflow",
+    "name": "Solarflow Hub",
+    "sw_version": "{{ fw_version }}"
+  },
+  "~": "solarflow-hub/{{ device_id }}/telemetry/"
+}
