@@ -49,7 +49,7 @@ sf_product_id = config.get('solarflow', 'product_id', fallback="73bkTV") or os.e
 mqtt_user = config.get('mqtt', 'mqtt_user', fallback=None) or os.environ.get('MQTT_USER',None)
 mqtt_pwd = config.get('mqtt', 'mqtt_pwd', fallback=None) or os.environ.get('MQTT_PWD',None)
 mqtt_host = config.get('mqtt', 'mqtt_host', fallback=None) or os.environ.get('MQTT_HOST',None)
-mqtt_port = config.getint('mqtt', 'mqtt_port', fallback=None) or os.environ.get('MQTT_PORT',1883)
+mqtt_port = config.getint('mqtt', 'mqtt_port', fallback=None) or int(os.environ.get('MQTT_PORT', 1883))
 
 
 DTU_TYPE = config.get('global', 'dtu_type', fallback=None) or os.environ.get('DTU_TYPE',"OpenDTU")
@@ -76,6 +76,11 @@ BATTERY_HIGH = None
 # the SoC that is required before discharging of the battery would start. To allow a bit of charging first in the morning.
 BATTERY_DISCHARGE_START = config.getint('control', 'battery_discharge_start', fallback=None) \
                         or int(os.environ.get('BATTERY_DISCHARGE_START',10)) 
+
+# enable grid charging via ACE when battery is below BATTERY_LOW and no solar is available
+# config.ini [control] grid_charge_enabled
+# set to false (default) to disable
+GRID_CHARGE_ENABLED =   None
 
 # the maximum allowed inverter output
 MAX_INVERTER_LIMIT =    config.getint('control', 'max_inverter_limit', fallback=None) \
@@ -109,6 +114,7 @@ LNG = config.getfloat('global', 'longitude', fallback=None) or float(os.environ.
 location: LocationInfo
 
 lastTriggerTS:datetime = None
+shutdownPendingSince:datetime = None
 
 class MyLocation:
     def getCoordinates(self) -> tuple:
@@ -129,7 +135,7 @@ class MyLocation:
 def on_config_message(client, userdata, msg):
     '''The MQTT client callback function for intial connects - mainly retained messages, where we are not yet fully up and running but still read potential config parameters from MQTT'''
 
-    global SUNRISE_OFFSET, SUNSET_OFFSET, MIN_CHARGE_POWER, MAX_DISCHARGE_POWER, DISCHARGE_DURING_DAYTIME,BATTERY_LOW,BATTERY_HIGH
+    global SUNRISE_OFFSET, SUNSET_OFFSET, MIN_CHARGE_POWER, MAX_DISCHARGE_POWER, DISCHARGE_DURING_DAYTIME, BATTERY_LOW, BATTERY_HIGH, GRID_CHARGE_ENABLED
     # handle own messages (control parameters)
     if msg.topic.startswith('solarflow-hub') and "control" in msg.topic and msg.payload:
         parameter = msg.topic.split('/')[-1]
@@ -156,11 +162,14 @@ def on_config_message(client, userdata, msg):
             case "batteryTargetSoCMax":
                 BATTERY_HIGH = int(value)
                 log.info(f'Found control/batteryTargetSoCMax, set BATTERY_HIGH to {BATTERY_HIGH}%')
+            case "gridChargeEnabled":
+                GRID_CHARGE_ENABLED = str2bool(value)
+                log.info(f'Found control/gridChargeEnabled, set GRID_CHARGE_ENABLED to {GRID_CHARGE_ENABLED}')
     
 
 def on_message(client, userdata, msg):
     '''The MQTT client callback function for continous oepration, messages are delegated to hub, dtu and smartmeter handlers as well as own control parameter updates'''
-    global SUNRISE_OFFSET, SUNSET_OFFSET, MIN_CHARGE_POWER, MAX_DISCHARGE_POWER, DISCHARGE_DURING_DAYTIME,BATTERY_LOW,BATTERY_HIGH
+    global SUNRISE_OFFSET, SUNSET_OFFSET, MIN_CHARGE_POWER, MAX_DISCHARGE_POWER, DISCHARGE_DURING_DAYTIME, BATTERY_LOW, BATTERY_HIGH, GRID_CHARGE_ENABLED
     #delegate message handling to hub,smartmeter, dtu
     smartmeter = userdata["smartmeter"]
     smartmeter.handleMsg(msg)
@@ -205,6 +214,9 @@ def on_message(client, userdata, msg):
                 log.info(f'Updating BATTERY_HIGH to {int(value)}%') if BATTERY_HIGH != int(value) else None
                 BATTERY_HIGH = int(value)
                 hub.updBatteryTargetSoCMax(BATTERY_HIGH)
+            case "gridChargeEnabled":
+                log.info(f'Updating GRID_CHARGE_ENABLED to {str2bool(value)}') if GRID_CHARGE_ENABLED != str2bool(value) else None
+                GRID_CHARGE_ENABLED = str2bool(value)
         
 
 def on_connect(client, userdata, flags, rc):
@@ -469,6 +481,70 @@ def limitHomeInput(client: mqtt_client):
              Inverter Limit: {inv_limit:.1f}W, \
              Hub Limit: {hub_limit:.1f}W'.split()))
 
+    _checkIdleShutdown(client, hub)
+    _checkGridCharge(client, hub)
+
+def _checkIdleShutdown(client: mqtt_client, hub):
+    """Shut down hub and ace when battery is at minimum and neither device has solar input
+    for at least 15 minutes. Devices wake themselves up again once solar returns."""
+    global shutdownPendingSince
+
+    ace_unit = client._userdata.get('ace')
+    hub_solar = hub.getSolarInputPower()
+    ace_solar = ace_unit.solarInputPower if ace_unit else 0
+    battery_at_min = hub.getElectricLevel() <= BATTERY_LOW
+
+    # do not shut down while grid charging is active
+    if ace_unit and ace_unit.acSwitch:
+        if shutdownPendingSince is not None:
+            log.info('Grid charging active — resetting idle shutdown timer.')
+            shutdownPendingSince = None
+        return
+
+    idle = battery_at_min and hub_solar == 0 and ace_solar == 0
+
+    if idle:
+        if shutdownPendingSince is None:
+            shutdownPendingSince = datetime.now()
+            log.info(f'Idle shutdown timer started: battery at {hub.getElectricLevel()}%, no solar on hub or ace.')
+        elif (datetime.now() - shutdownPendingSince).total_seconds() >= 900:
+            log.info('Idle for 15 minutes with battery at minimum and no solar — shutting down hub and ace.')
+            hub.setMasterSwitch(False)
+            if ace_unit:
+                ace_unit.setMasterSwitch(False)
+    else:
+        if shutdownPendingSince is not None:
+            log.info(f'Idle conditions no longer met (battery: {hub.getElectricLevel()}%, hub solar: {hub_solar}W, ace solar: {ace_solar}W) — resetting shutdown timer.')
+        shutdownPendingSince = None
+
+
+def _checkGridCharge(client: mqtt_client, hub):
+    """Use the ACE 1500 AC input to charge the battery from the grid when:
+    - grid_charge_enabled is true
+    - Battery is at or below BATTERY_LOW
+    - No solar input on hub or ace (avoid unnecessary grid draw while sun is up)
+    Stop charging once battery reaches BATTERY_LOW (the configured discharge minimum)."""
+    if not GRID_CHARGE_ENABLED:
+        return
+
+    ace_unit = client._userdata.get('ace')
+    if ace_unit is None:
+        return
+
+    hub_solar = hub.getSolarInputPower()
+    ace_solar = ace_unit.solarInputPower if ace_unit else 0
+    battery_soc = hub.getElectricLevel()
+    no_solar = hub_solar == 0 and ace_solar == 0
+
+    if battery_soc <= BATTERY_LOW and no_solar and not ace_unit.acSwitch:
+        log.info(f'Battery at {battery_soc}% (min {BATTERY_LOW}%), no solar — enabling grid charging via ACE until {BATTERY_LOW}%.')
+        ace_unit.setAcSwitch(True)
+    elif ace_unit.acSwitch and (battery_soc >= BATTERY_LOW or not no_solar):
+        reason = f'target SoC {BATTERY_LOW}% reached' if battery_soc >= BATTERY_LOW else f'solar available (hub: {hub_solar}W, ace: {ace_solar}W)'
+        log.info(f'Stopping grid charging: {reason}.')
+        ace_unit.setAcSwitch(False)
+
+
 def getOpts(configtype) -> dict:
     '''Get the configuration options for a specific section from the global config.ini'''
     global config
@@ -505,43 +581,54 @@ def deviceInfo(client:mqtt_client):
     limitHomeInput(client)
 
 def updateConfigParams(client):
-    global config, DISCHARGE_DURING_DAYTIME, SUNRISE_OFFSET, SUNSET_OFFSET, MIN_CHARGE_POWER, MAX_DISCHARGE_POWER, BATTERY_HIGH, BATTERY_LOW
+    global config, DISCHARGE_DURING_DAYTIME, SUNRISE_OFFSET, SUNSET_OFFSET, MIN_CHARGE_POWER, MAX_DISCHARGE_POWER, BATTERY_HIGH, BATTERY_LOW, GRID_CHARGE_ENABLED
 
     # only update if configparameters haven't been updated/read from MQTT
+    def cfg(section, key, fallback, env_key, env_default, getter='getint'):
+        val = getattr(config, getter)(section, key, fallback=fallback)
+        if val is None:
+            val = env_default if os.environ.get(env_key) is None else type(env_default)(os.environ.get(env_key))
+        return val
+
     if DISCHARGE_DURING_DAYTIME == None:
-        DISCHARGE_DURING_DAYTIME = config.getboolean('control', 'discharge_during_daytime', fallback=None) or bool(os.environ.get('DISCHARGE_DURING_DAYTIME',False))
+        DISCHARGE_DURING_DAYTIME = cfg('control', 'discharge_during_daytime', None, 'DISCHARGE_DURING_DAYTIME', False, 'getboolean')
         log.info(f'Updating DISCHARGE_DURING_DAYTIME from config file to {DISCHARGE_DURING_DAYTIME}')
         client.publish(f'solarflow-hub/{sf_device_id}/control/dischargeDuringDaytime',str(DISCHARGE_DURING_DAYTIME),retain=True)
 
     if SUNRISE_OFFSET == None:
-        SUNRISE_OFFSET = config.getint('control', 'sunrise_offset', fallback=60) or int(os.environ.get('SUNRISE_OFFSET',60))
+        SUNRISE_OFFSET = cfg('control', 'sunrise_offset', 60, 'SUNRISE_OFFSET', 60)
         log.info(f'Updating SUNRISE_OFFSET from config file to {SUNRISE_OFFSET} minutes')
         client.publish(f'solarflow-hub/{sf_device_id}/control/sunriseOffset',SUNRISE_OFFSET,retain=True)
 
-    if SUNSET_OFFSET == None:  
-        SUNSET_OFFSET = config.getint('control', 'sunset_offset', fallback=60) or int(os.environ.get('SUNSET_OFFSET',60))
+    if SUNSET_OFFSET == None:
+        SUNSET_OFFSET = cfg('control', 'sunset_offset', 60, 'SUNSET_OFFSET', 60)
         log.info(f'Updating SUNSET_OFFSET from config file to {SUNSET_OFFSET} minutes')
         client.publish(f'solarflow-hub/{sf_device_id}/control/sunsetOffset',SUNSET_OFFSET,retain=True)
 
     if MIN_CHARGE_POWER == None:
-        MIN_CHARGE_POWER = config.getint('control', 'min_charge_power', fallback=None) or int(os.environ.get('MIN_CHARGE_POWER',0))
+        MIN_CHARGE_POWER = cfg('control', 'min_charge_power', 0, 'MIN_CHARGE_POWER', 0)
         log.info(f'Updating MIN_CHARGE_POWER from config file to {MIN_CHARGE_POWER}W')
         client.publish(f'solarflow-hub/{sf_device_id}/control/minChargePower',MIN_CHARGE_POWER,retain=True)
 
     if MAX_DISCHARGE_POWER == None:
-        MAX_DISCHARGE_POWER = config.getint('control', 'max_discharge_power', fallback=None) or int(os.environ.get('MAX_DISCHARGE_POWER',145))
+        MAX_DISCHARGE_POWER = cfg('control', 'max_discharge_power', 145, 'MAX_DISCHARGE_POWER', 145)
         log.info(f'Updating MAX_DISCHARGE_POWER from config file to {MAX_DISCHARGE_POWER}W')
         client.publish(f'solarflow-hub/{sf_device_id}/control/maxDischargePower',MAX_DISCHARGE_POWER,retain=True)
 
     if BATTERY_LOW == None:
-        BATTERY_LOW = config.getint('control', 'battery_low', fallback=None) or int(os.environ.get('BATTERY_LOW',2)) 
+        BATTERY_LOW = cfg('control', 'battery_low', 2, 'BATTERY_LOW', 2)
         log.info(f'Updating BATTERY_LOW from config file to {BATTERY_LOW}%')
         client.publish(f'solarflow-hub/{sf_device_id}/control/batteryTargetSoCMin',BATTERY_LOW,retain=True)
 
     if BATTERY_HIGH == None:
-        BATTERY_HIGH = config.getint('control', 'battery_high', fallback=None) or int(os.environ.get('BATTERY_HIGH',98)) 
+        BATTERY_HIGH = cfg('control', 'battery_high', 98, 'BATTERY_HIGH', 98)
         log.info(f'Updating BATTERY_HIGH from config file to {BATTERY_HIGH}%')
         client.publish(f'solarflow-hub/{sf_device_id}/control/batteryTargetSoCMax',BATTERY_HIGH,retain=True)
+
+    if GRID_CHARGE_ENABLED == None:
+        GRID_CHARGE_ENABLED = cfg('control', 'grid_charge_enabled', False, 'GRID_CHARGE_ENABLED', False, 'getboolean')
+        log.info(f'Updating GRID_CHARGE_ENABLED from config file to {GRID_CHARGE_ENABLED}')
+        client.publish(f'solarflow-hub/{sf_device_id}/control/gridChargeEnabled',str(GRID_CHARGE_ENABLED),retain=True)
 
 
 
@@ -576,6 +663,7 @@ def run():
     log.info(f'  BATTERY_HIGH = {BATTERY_HIGH}')
     log.info(f'  BATTERY_DISCHARGE_START = {BATTERY_DISCHARGE_START}')
     log.info(f'  DISCHARGE_DURING_DAYTIME = {DISCHARGE_DURING_DAYTIME}')
+    log.info(f'  GRID_CHARGE_ENABLED = {GRID_CHARGE_ENABLED}')
 
     
     hub = solarflow.Solarflow(client=client,callback=limit_callback,**hub_opts)

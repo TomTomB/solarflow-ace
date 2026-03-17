@@ -31,7 +31,12 @@ class Ace:
         self.lastSolarInputTS = None    # time of the last received solar input value
         self.solarInputValues = TimewindowBuffer(minutes=1)
         self.solarInputPower = -1
-                
+        self.masterSwitch = True
+        self.dryrun = False
+        self.acSwitch = False
+        self.gridInputPower = 0
+        self.acMode = -1
+
         haconfig = RepeatedTimer(600, self.pushHomeassistantConfig)
         self.pushHomeassistantConfig()        
                 
@@ -53,6 +58,9 @@ class Ace:
     def subscribe(self):
         topics = [
             f'/{self.productId}/{self.deviceId}/properties/report',
+            f'solarflow-hub/{self.deviceId}/telemetry/acSwitch',
+            f'solarflow-hub/{self.deviceId}/telemetry/gridInputPower',
+            f'solarflow-hub/{self.deviceId}/telemetry/acMode',
         ]
         for t in topics:
             self.client.subscribe(t)
@@ -102,6 +110,15 @@ class Ace:
                     self.updSolarInput(int(value))
                 case "masterFirmwareVersion":
                     self.updMasterFirmwareVersion(value=int(value))
+                case "acSwitch":
+                    self.acSwitch = bool(int(value))
+                case "gridInputPower":
+                    self.gridInputPower = int(value)
+                case "acMode":
+                    self.acMode = int(value)
+                case "dryRun":
+                    if type(value) == str:
+                        self.dryrun = value.upper() == 'ON'
                 case _:
                     if not "control" in msg.topic:
                         log.warning(f'Ignoring solarflow-hub metric: {metric}')
@@ -120,10 +137,32 @@ class Ace:
         self.solarInputPower = self.getSolarInputPower()
         self.lastSolarInputTS = datetime.now()
 
+        # Device may have woken itself up via hardware solar detection while masterSwitch
+        # was set to OFF by us — sync state so next idle check works correctly
+        if value > 0 and not self.masterSwitch:
+            log.info('Ace solar detected while master switch was off — device woke up on its own, syncing state.')
+            self.masterSwitch = True
+
         previous = self.solarInputValues.previous()
         if abs(previous - self.getSolarInputPower()) >= TRIGGER_DIFF:
             log.info(f'Ace triggers limit function: {previous} -> {self.getSolarInputPower()}: {"executed" if self.trigger_callback(self.client) else "skipped"}')
             self.last_trigger_value = self.getSolarInputPower()
+
+    def setAcSwitch(self, state: bool):
+        if self.acSwitch == state:
+            return
+        payload = {"properties": {"acSwitch": 1 if state else 0}}
+        (not self.dryrun) and self.client.publish(self.property_topic, json.dumps(payload))
+        self.acSwitch = state
+        log.info(f'{"[DRYRUN] " if self.dryrun else ""}Turning Ace AC switch {"ON" if state else "OFF"} (grid charging {"enabled" if state else "disabled"})')
+
+    def setMasterSwitch(self, state: bool):
+        if self.masterSwitch == state:
+            return
+        master = {"properties": {"masterSwitch": 1 if state else 0}}
+        (not self.dryrun) and self.client.publish(self.property_topic, json.dumps(master))
+        self.masterSwitch = state
+        log.info(f'{"[DRYRUN] " if self.dryrun else ""}Turning Ace master switch {"ON" if state else "OFF"}')
 
     def setBuzzer(self, state: bool):
         buzzer = {"properties": { "buzzerSwitch": 0 if not state else 1 }}

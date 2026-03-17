@@ -62,6 +62,8 @@ class TimewindowBuffer:
         i = 1
         while True:
             bucket = list(filter(lambda v: isExpired(v, now-timedelta(seconds=i*10), 10),self.values))
+            if not bucket:
+                break
             avg = reduce(lambda a,b: a+b, [v[1] for v in bucket])/len(bucket)
             self.aggregated_values.insert(0,avg)
             #log.info(f' Bucket {i}: {[v[1] for v in enumerate(bucket)]}')

@@ -77,6 +77,7 @@ class Solarflow:
         self.trigger_callback = callback
 
         self.lastLimitTS = None
+        self.masterSwitch = True
 
         client.publish(f'solarflow-hub/{self.deviceId}/control/controlBypass',str(self.control_bypass),retain=True)
         client.publish(f'solarflow-hub/{self.deviceId}/control/fullChargeInterval',self.fullChargeInterval,retain=True)
@@ -163,6 +164,12 @@ class Solarflow:
         self.solarInputValues.add(value)
         self.solarInputPower = self.getSolarInputPower()
         self.lastSolarInputTS = datetime.now()
+
+        # Device may have woken itself up via hardware solar detection while masterSwitch
+        # was set to OFF by us — sync state so next idle check works correctly
+        if value > 0 and not self.masterSwitch:
+            log.info('Hub solar detected while master switch was off — device woke up on its own, syncing state.')
+            self.masterSwitch = True
 
         # TODO: experimental, trigger limit calculation only on significant changes of smartmeter
         previous = self.solarInputValues.previous()
@@ -262,11 +269,25 @@ class Solarflow:
         self.batteriesSoC.update({sn:value})
 
     def updMinSoC(self,value:int):
-        self.batteryLow=int(value/10)
+        incoming = int(value/10)
+        # During a charge-through cycle the hub's minSoc is temporarily forced to 0.
+        # Ignore incoming 0 if we are in a charge-through stage to avoid overwriting the
+        # configured battery minimum after a restart mid-cycle.
+        if incoming == 0 and self.chargeThroughStage in [BATTERY_TARGET_CHARGING, BATTERY_TARGET_DISCHARGING]:
+            log.info(f'Ignoring minSoc=0 from hub while charge-through is active (stage: {self.chargeThroughStage})')
+        else:
+            self.batteryLow = incoming
         self.processRequestedChargeThrough()
 
     def updSocSet(self,value:int):
-        self.batteryHigh=int(value/10)
+        incoming = int(value/10)
+        # During a charge-through cycle the hub's socSet is temporarily forced to 100.
+        # Ignore incoming 100 if we are in a charge-through stage to avoid overwriting
+        # the configured battery maximum after a restart mid-cycle.
+        if incoming == 100 and self.chargeThroughStage in [BATTERY_TARGET_CHARGING, BATTERY_TARGET_DISCHARGING]:
+            log.info(f'Ignoring socSet=100 from hub while charge-through is active (stage: {self.chargeThroughStage})')
+        else:
+            self.batteryHigh = incoming
         self.processRequestedChargeThrough()
 
     def updBatteryVol(self, sn:str, value:int):
@@ -464,11 +485,6 @@ class Solarflow:
         # since the hub is slow in adoption we should not try to set the limit too frequently
         # 30-45s seems ok
         now = datetime.now()
-        if self.lastLimitTS:
-            elapsed = now - self.lastLimitTS
-            if elapsed.total_seconds() < 30:
-                log.info(f'Hub has recently adjusted limit, need to wait until it is set again! Current limit: {self.outputLimit:.0f}, new limit: {limit:.1f}')
-                return self.outputLimit
 
         if limit < 0:
             limit = 0
@@ -476,13 +492,20 @@ class Solarflow:
         # If battery SoC reaches 0% during night, it has been observed that in the morning with first light, residual energy in the batteries gets released
         # Hub goes then into error and no charging occurs (probably deep discharge assumed by the battery).
         # Hence setting the output limit 0 if SoC 0%
-        if self.electricLevel <= self.batteryLow and (not self.chargeThrough and self.chargeThroughStage == BATTERY_TARGET_DISCHARGING):
+        # These safety checks must run before the rate-limit guard so they always take effect.
+        if self.electricLevel <= self.batteryLow and not self.chargeThrough:
             limit = 0
-            log.info(f'Battery is at low limit ({self.electricLevel} <= {self.batteryLow}) and charge throug is off. Stop discharging, setting limit to {limit}')
+            log.info(f'Battery is at low limit ({self.electricLevel} <= {self.batteryLow}) and charge through is off. Stop discharging, setting limit to {limit}')
 
         if self.electricLevel == 0:
             limit = 0
             log.info(f'Battery is empty! Disabling solarflow output, setting limit to {limit}')
+
+        if self.lastLimitTS:
+            elapsed = now - self.lastLimitTS
+            if elapsed.total_seconds() < 30:
+                log.info(f'Hub has recently adjusted limit, need to wait until it is set again! Current limit: {self.outputLimit:.0f}, new limit: {limit:.1f}')
+                return self.outputLimit
 
         # Charge-Through:
         # If charge-through is enabled the hub will not provide any power if the last full state is to long ago
@@ -514,6 +537,14 @@ class Solarflow:
         else:
             log.info(f'{"[DRYRUN] " if self.dryrun else ""}Not setting solarflow output limit to {limit:.1f}W as it is identical to current limit!')
         return limit
+
+    def setMasterSwitch(self, state: bool):
+        if self.masterSwitch == state:
+            return
+        master = {"properties": {"masterSwitch": 1 if state else 0}}
+        (not self.dryrun) and self.client.publish(self.property_topic, json.dumps(master))
+        self.masterSwitch = state
+        log.info(f'{"[DRYRUN] " if self.dryrun else ""}Turning hub master switch {"ON" if state else "OFF"}')
 
     def setBuzzer(self, state: bool):
         buzzer = {"properties": { "buzzerSwitch": 0 if not state else 1 }}
