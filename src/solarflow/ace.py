@@ -29,6 +29,7 @@ class Ace:
         self.fwVersion = "unknown"
         
         self.lastSolarInputTS = None    # time of the last received solar input value
+        self.startTS = datetime.now()     # used to detect prolonged silence even without any solar update
         self.solarInputValues = TimewindowBuffer(minutes=1)
         self.solarInputPower = -1
         self.masterSwitch = True
@@ -93,15 +94,13 @@ class Ace:
                     self.client.publish(f'solarflow-hub/{device_id}/telemetry/{prop}',val)
 
         if msg.topic.startswith(f'solarflow-hub/{self.deviceId}') and msg.payload:
-            # check if we got regular updates on solarInputPower
-            # if we haven't received any update on solarInputPower for 120s
-            # we assume it's not producing and inject 0
             now = datetime.now()
-            if self.lastSolarInputTS:
-                diff = now - self.lastSolarInputTS
-                seconds = diff.total_seconds()
-                if seconds > 120:
-                    self.updSolarInput(0)
+            # inject 0 if no solar update for 120s
+            # also covers the case where we've never received an update (lastSolarInputTS is None)
+            # but the device has been running long enough that solar silence is intentional
+            last_known = self.lastSolarInputTS or self.startTS
+            if (now - last_known).total_seconds() > 120:
+                self.updSolarInput(0)
 
             metric = msg.topic.split('/')[-1]
             value = msg.payload.decode()
@@ -163,6 +162,18 @@ class Ace:
         (not self.dryrun) and self.client.publish(self.property_topic, json.dumps(master))
         self.masterSwitch = state
         log.info(f'{"[DRYRUN] " if self.dryrun else ""}Turning Ace master switch {"ON" if state else "OFF"}')
+
+        if not state:
+            log.info('Ace shutting down — resetting live sensor values to 0.')
+            self.solarInputValues.clear()
+            self.solarInputPower = 0
+            self.gridInputPower = 0
+            self.lastSolarInputTS = None
+            self.startTS = datetime.now()
+            for metric, value in [
+                ('solarInputPower', 0), ('gridInputPower', 0),
+            ]:
+                self.client.publish(f'solarflow-hub/{self.deviceId}/telemetry/{metric}', value)
 
     def setBuzzer(self, state: bool):
         buzzer = {"properties": { "buzzerSwitch": 0 if not state else 1 }}

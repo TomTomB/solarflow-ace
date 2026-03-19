@@ -546,6 +546,20 @@ class Solarflow:
         self.masterSwitch = state
         log.info(f'{"[DRYRUN] " if self.dryrun else ""}Turning hub master switch {"ON" if state else "OFF"}')
 
+        if not state:
+            log.info('Hub shutting down — resetting live sensor values to 0.')
+            self.solarInputValues.clear()
+            self.solarInputPower = 0
+            self.outputPackPower = 0
+            self.packInputPower = 0
+            self.outputHomePower = 0
+            self.lastSolarInputTS = None
+            for metric, value in [
+                ('solarInputPower', 0), ('outputPackPower', 0),
+                ('packInputPower', 0), ('outputHomePower', 0),
+            ]:
+                self.client.publish(f'solarflow-hub/{self.deviceId}/telemetry/{metric}', value)
+
     def setBuzzer(self, state: bool):
         buzzer = {"properties": { "buzzerSwitch": 0 if not state else 1 }}
         self.client.publish(self.property_topic,json.dumps(buzzer))

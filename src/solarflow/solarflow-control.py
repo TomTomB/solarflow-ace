@@ -489,10 +489,15 @@ def _checkIdleShutdown(client: mqtt_client, hub):
     for at least 15 minutes. Devices wake themselves up again once solar returns."""
     global shutdownPendingSince
 
+    if BATTERY_LOW is None:
+        return
+
     ace_unit = client._userdata.get('ace')
     hub_solar = hub.getSolarInputPower()
-    ace_solar = ace_unit.solarInputPower if ace_unit else 0
-    battery_at_min = hub.getElectricLevel() <= BATTERY_LOW
+    # use getSolarInputPower() (returns 0 for empty buffer) instead of raw solarInputPower
+    # which stays at -1 if the ace has never sent a solar update
+    ace_solar = ace_unit.getSolarInputPower() if ace_unit else 0
+    battery_at_min = hub.getElectricLevel() > -1 and hub.getElectricLevel() <= BATTERY_LOW
 
     # do not shut down while grid charging is active
     if ace_unit and ace_unit.acSwitch:
