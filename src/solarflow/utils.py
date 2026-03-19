@@ -108,8 +108,8 @@ class TimewindowBuffer:
         return round(reduce(lambda a,b: a+b, self.aggregated_values)/((n*(n+1)*(2*n+1))/6),1)
     
     def clear(self):
-        #self.values = []
-        self.aggregated_values = [self.aggregated_values[-1]]
+        self.values = []
+        self.aggregated_values = [self.aggregated_values[-1]] if self.aggregated_values else []
 
     # used to prepopulate smartmeter readings with fixed values for a certain amount of seconds
     def populate(self, duration, value):
