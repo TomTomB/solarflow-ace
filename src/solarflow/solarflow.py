@@ -78,6 +78,7 @@ class Solarflow:
 
         self.lastLimitTS = None
         self.masterSwitch = True
+        self.shouldStandby = False
 
         client.publish(f'solarflow-hub/{self.deviceId}/control/controlBypass',str(self.control_bypass),retain=True)
         client.publish(f'solarflow-hub/{self.deviceId}/control/fullChargeInterval',self.fullChargeInterval,retain=True)
@@ -537,6 +538,13 @@ class Solarflow:
         else:
             log.info(f'{"[DRYRUN] " if self.dryrun else ""}Not setting solarflow output limit to {limit:.1f}W as it is identical to current limit!')
         return limit
+
+    def setShouldStandby(self, state: bool):
+        if self.shouldStandby == state:
+            return
+        self.shouldStandby = state
+        self.client.publish(f'solarflow-hub/{self.deviceId}/telemetry/shouldStandby', 1 if state else 0)
+        log.info(f'Hub shouldStandby set to {state}')
 
     def setMasterSwitch(self, state: bool):
         if self.masterSwitch == state:
