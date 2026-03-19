@@ -35,7 +35,13 @@ class Ace:
         self.masterSwitch = True
         self.dryrun = False
         self.acSwitch = False
+        self.dcSwitch = False
         self.gridInputPower = 0
+        self.acOutputPower = 0
+        self.dcOutputPower = 0
+        self.outputPackPower = 0
+        self.packInputPower = 0
+        self.packState = -1
         self.acMode = -1
 
         haconfig = RepeatedTimer(600, self.pushHomeassistantConfig)
@@ -60,7 +66,13 @@ class Ace:
         topics = [
             f'/{self.productId}/{self.deviceId}/properties/report',
             f'solarflow-hub/{self.deviceId}/telemetry/acSwitch',
+            f'solarflow-hub/{self.deviceId}/telemetry/dcSwitch',
             f'solarflow-hub/{self.deviceId}/telemetry/gridInputPower',
+            f'solarflow-hub/{self.deviceId}/telemetry/acOutputPower',
+            f'solarflow-hub/{self.deviceId}/telemetry/dcOutputPower',
+            f'solarflow-hub/{self.deviceId}/telemetry/outputPackPower',
+            f'solarflow-hub/{self.deviceId}/telemetry/packInputPower',
+            f'solarflow-hub/{self.deviceId}/telemetry/packState',
             f'solarflow-hub/{self.deviceId}/telemetry/acMode',
         ]
         for t in topics:
@@ -111,8 +123,20 @@ class Ace:
                     self.updMasterFirmwareVersion(value=int(value))
                 case "acSwitch":
                     self.acSwitch = bool(int(value))
+                case "dcSwitch":
+                    self.dcSwitch = bool(int(value))
                 case "gridInputPower":
                     self.gridInputPower = int(value)
+                case "acOutputPower":
+                    self.acOutputPower = int(value)
+                case "dcOutputPower":
+                    self.dcOutputPower = int(value)
+                case "outputPackPower":
+                    self.outputPackPower = int(value)
+                case "packInputPower":
+                    self.packInputPower = int(value)
+                case "packState":
+                    self.packState = int(value)
                 case "acMode":
                     self.acMode = int(value)
                 case "dryRun":
@@ -121,6 +145,10 @@ class Ace:
                 case _:
                     if not "control" in msg.topic:
                         log.warning(f'Ignoring solarflow-hub metric: {metric}')
+
+    def isOutputActive(self) -> bool:
+        """Returns True if AC or DC output ports are currently in use."""
+        return self.acSwitch or self.dcSwitch or self.acOutputPower > 5 or self.dcOutputPower > 5
 
     def getSolarInputPower(self):
         return self.solarInputValues.last()
@@ -168,10 +196,17 @@ class Ace:
             self.solarInputValues.clear()
             self.solarInputPower = 0
             self.gridInputPower = 0
+            self.acOutputPower = 0
+            self.dcOutputPower = 0
+            self.outputPackPower = 0
+            self.packInputPower = 0
+            self.packState = -1
             self.lastSolarInputTS = None
             self.startTS = datetime.now()
             for metric, value in [
                 ('solarInputPower', 0), ('gridInputPower', 0),
+                ('acOutputPower', 0), ('dcOutputPower', 0),
+                ('outputPackPower', 0), ('packInputPower', 0),
             ]:
                 self.client.publish(f'solarflow-hub/{self.deviceId}/telemetry/{metric}', value)
 

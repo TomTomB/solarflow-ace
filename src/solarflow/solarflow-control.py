@@ -486,10 +486,12 @@ def limitHomeInput(client: mqtt_client):
 
 def _checkIdleShutdown(client: mqtt_client, hub):
     """Shut down hub and ace when battery is at minimum and neither device has solar input
-    for at least 15 minutes. Devices wake themselves up again once solar returns."""
+    for at least 15 minutes.
+    Additionally shut down the ace immediately when the battery is full and no output is active.
+    Devices wake themselves up again once solar returns."""
     global shutdownPendingSince
 
-    if BATTERY_LOW is None:
+    if BATTERY_LOW is None or BATTERY_HIGH is None:
         return
 
     ace_unit = client._userdata.get('ace')
@@ -497,7 +499,9 @@ def _checkIdleShutdown(client: mqtt_client, hub):
     # use getSolarInputPower() (returns 0 for empty buffer) instead of raw solarInputPower
     # which stays at -1 if the ace has never sent a solar update
     ace_solar = ace_unit.getSolarInputPower() if ace_unit else 0
-    battery_at_min = hub.getElectricLevel() > -1 and hub.getElectricLevel() <= BATTERY_LOW
+    battery_soc = hub.getElectricLevel()
+    battery_at_min = battery_soc > -1 and battery_soc <= BATTERY_LOW
+    battery_full = battery_soc >= BATTERY_HIGH
 
     # do not shut down while grid charging is active
     if ace_unit and ace_unit.acSwitch:
@@ -506,12 +510,21 @@ def _checkIdleShutdown(client: mqtt_client, hub):
             shutdownPendingSince = None
         return
 
+    # shut down ace immediately once battery is full (it can only charge, nothing else to do)
+    # but guard against active AC/DC output ports
+    if ace_unit and battery_full and ace_unit.masterSwitch:
+        if ace_unit.isOutputActive():
+            log.info(f'Battery full ({battery_soc}%) but ace has active output (AC: {ace_unit.acOutputPower}W, DC: {ace_unit.dcOutputPower}W) — not shutting down ace.')
+        else:
+            log.info(f'Battery full ({battery_soc}%) and no ace output active — shutting down ace.')
+            ace_unit.setMasterSwitch(False)
+
     idle = battery_at_min and hub_solar == 0 and ace_solar == 0
 
     if idle:
         if shutdownPendingSince is None:
             shutdownPendingSince = datetime.now()
-            log.info(f'Idle shutdown timer started: battery at {hub.getElectricLevel()}%, no solar on hub or ace.')
+            log.info(f'Idle shutdown timer started: battery at {battery_soc}%, no solar on hub or ace.')
         elif (datetime.now() - shutdownPendingSince).total_seconds() >= 900:
             log.info('Idle for 15 minutes with battery at minimum and no solar — shutting down hub and ace.')
             hub.setMasterSwitch(False)
@@ -519,7 +532,7 @@ def _checkIdleShutdown(client: mqtt_client, hub):
                 ace_unit.setMasterSwitch(False)
     else:
         if shutdownPendingSince is not None:
-            log.info(f'Idle conditions no longer met (battery: {hub.getElectricLevel()}%, hub solar: {hub_solar}W, ace solar: {ace_solar}W) — resetting shutdown timer.')
+            log.info(f'Idle conditions no longer met (battery: {battery_soc}%, hub solar: {hub_solar}W, ace solar: {ace_solar}W) — resetting shutdown timer.')
         shutdownPendingSince = None
 
 
