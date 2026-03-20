@@ -239,8 +239,16 @@ def connect_mqtt() -> mqtt_client:
     client.on_connect = on_connect
     client.on_disconnect = on_disconnect
     client.on_message = on_config_message
-    client.connect(mqtt_host, mqtt_port)
-    return client
+
+    delay = 5
+    while True:
+        try:
+            client.connect(mqtt_host, mqtt_port)
+            return client
+        except Exception as e:
+            log.error(f'Could not connect to MQTT broker at {mqtt_host}:{mqtt_port}: {e}. Retrying in {delay}s...')
+            time.sleep(delay)
+            delay = min(delay * 2, 300)
 
 def subscribe(client: mqtt_client):
     topics = [
@@ -508,6 +516,7 @@ def _checkIdleShutdown(client: mqtt_client, hub):
         return
 
     idle = battery_at_min and hub_solar == 0 and ace_solar == 0
+    log.debug(f'Idle check: battery={battery_soc}% (low={BATTERY_LOW}%, at_min={battery_at_min}), hub_solar={hub_solar}W, ace_solar={ace_solar}W → idle={idle}')
 
     if idle:
         if shutdownPendingSince is None:
@@ -686,6 +695,7 @@ def run():
     client.on_message = on_message
 
     infotimer = RepeatedTimer(120, deviceInfo, client)
+    idletimer = RepeatedTimer(300, _checkIdleShutdown, client, hub)
 
     # subscribe Hub, DTU and Smartmeter so that they can react on received messages
     hub.subscribe()

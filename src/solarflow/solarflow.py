@@ -80,6 +80,7 @@ class Solarflow:
         self.masterSwitch = True
         self.shouldStandby = False
 
+        client.publish(f'solarflow-hub/{self.deviceId}/telemetry/shouldStandby', 0)
         client.publish(f'solarflow-hub/{self.deviceId}/control/controlBypass',str(self.control_bypass),retain=True)
         client.publish(f'solarflow-hub/{self.deviceId}/control/fullChargeInterval',self.fullChargeInterval,retain=True)
 
@@ -106,6 +107,7 @@ class Solarflow:
     def update(self):
         log.info(f'Triggering telemetry update: iot/{self.productId}/{self.deviceId}/properties/read')
         self.client.publish(f'iot/{self.productId}/{self.deviceId}/properties/read','{"properties": ["getAll"]}')
+        self.client.publish(f'solarflow-hub/{self.deviceId}/telemetry/shouldStandby', 1 if self.shouldStandby else 0)
 
     def subscribe(self):
         topics = [
