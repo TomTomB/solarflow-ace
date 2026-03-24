@@ -493,20 +493,30 @@ def limitHomeInput(client: mqtt_client):
     _checkGridCharge(client, hub)
 
 def _checkIdleShutdown(client: mqtt_client, hub):
-    """Shut down hub and ace when battery is at minimum and neither device has solar input
-    for at least 15 minutes. Devices wake themselves up again once solar returns."""
+    """Shut down hub and ace when there is no solar input for at least 15 minutes.
+    Devices wake themselves up again once solar returns."""
     global shutdownPendingSince
 
     if BATTERY_LOW is None:
         return
 
     ace_unit = client._userdata.get('ace')
-    hub_solar = hub.getSolarInputPower()
-    # use getSolarInputPower() (returns 0 for empty buffer) instead of raw solarInputPower
-    # which stays at -1 if the ace has never sent a solar update
-    ace_solar = ace_unit.getSolarInputPower() if ace_unit else 0
+    now = datetime.now()
+
+    # Consider solar as 0 if the buffer hasn't been updated in >120s.
+    # This guards against getSolarInputPower() returning stale daytime values
+    # when no hub telemetry arrives (e.g. device fully idle at night).
+    hub_stale = hub.lastSolarInputTS is None or (now - hub.lastSolarInputTS).total_seconds() > 120
+    hub_solar = 0 if hub_stale else hub.getSolarInputPower()
+
+    if ace_unit:
+        ace_last = ace_unit.lastSolarInputTS or ace_unit.startTS
+        ace_stale = (now - ace_last).total_seconds() > 120
+        ace_solar = 0 if ace_stale else ace_unit.getSolarInputPower()
+    else:
+        ace_solar = 0
+
     battery_soc = hub.getElectricLevel()
-    battery_at_min = battery_soc > -1 and battery_soc <= BATTERY_LOW
 
     # do not shut down while grid charging is active
     if ace_unit and ace_unit.acSwitch:
@@ -515,16 +525,19 @@ def _checkIdleShutdown(client: mqtt_client, hub):
             shutdownPendingSince = None
         return
 
+    # idle = battery fully discharged to minimum AND no solar on any source
+    # battery_soc guard ensures hub data was received at all
+    battery_at_min = battery_soc > -1 and battery_soc <= BATTERY_LOW
     idle = battery_at_min and hub_solar == 0 and ace_solar == 0
-    log.debug(f'Idle check: battery={battery_soc}% (low={BATTERY_LOW}%, at_min={battery_at_min}), hub_solar={hub_solar}W, ace_solar={ace_solar}W → idle={idle}')
+    log.info(f'Idle check: battery={battery_soc}% (low={BATTERY_LOW}%, at_min={battery_at_min}), hub_solar={hub_solar}W (stale={hub_stale}), ace_solar={ace_solar}W → idle={idle}')
 
     if idle:
         if shutdownPendingSince is None:
             shutdownPendingSince = datetime.now()
             hub.setShouldStandby(True)
-            log.info(f'Idle shutdown timer started: battery at {battery_soc}%, no solar on hub or ace.')
+            log.info(f'Idle shutdown timer started: battery at {battery_soc}% (≤ {BATTERY_LOW}%), no solar on hub or ace.')
         elif (datetime.now() - shutdownPendingSince).total_seconds() >= 900:
-            log.info('Idle for 15 minutes with battery at minimum and no solar — shutting down hub and ace.')
+            log.info('Battery at minimum with no solar for 15 minutes — shutting down hub and ace.')
             hub.setShouldStandby(False)
             hub.setMasterSwitch(False)
             if ace_unit:
