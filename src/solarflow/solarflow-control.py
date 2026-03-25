@@ -526,10 +526,11 @@ def _checkIdleShutdown(client: mqtt_client, hub):
         return
 
     # idle = battery fully discharged to minimum AND no solar on any source
-    # battery_soc guard ensures hub data was received at all
-    battery_at_min = battery_soc > -1 and battery_soc <= BATTERY_LOW
+    # use hub.batteryLow (the hub's actual configured minimum) rather than the global
+    # BATTERY_LOW which may be stale/out-of-sync with the hub's own retained value
+    battery_at_min = battery_soc > -1 and battery_soc <= hub.batteryLow
     idle = battery_at_min and hub_solar == 0 and ace_solar == 0
-    log.info(f'Idle check: battery={battery_soc}% (low={BATTERY_LOW}%, at_min={battery_at_min}), hub_solar={hub_solar}W (stale={hub_stale}), ace_solar={ace_solar}W → idle={idle}')
+    log.info(f'Idle check: battery={battery_soc}% (hub_low={hub.batteryLow}%, at_min={battery_at_min}), hub_solar={hub_solar}W (stale={hub_stale}), ace_solar={ace_solar}W → idle={idle}')
 
     if idle:
         if shutdownPendingSince is None:
