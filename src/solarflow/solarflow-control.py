@@ -500,6 +500,10 @@ def _checkIdleShutdown(client: mqtt_client, hub):
     if BATTERY_LOW is None:
         return
 
+    # hub is already shut down — nothing to do until it wakes up on its own
+    if not hub.masterSwitch:
+        return
+
     ace_unit = client._userdata.get('ace')
     now = datetime.now()
 
@@ -543,6 +547,7 @@ def _checkIdleShutdown(client: mqtt_client, hub):
             hub.setMasterSwitch(False)
             if ace_unit:
                 ace_unit.setMasterSwitch(False)
+            shutdownPendingSince = None
     else:
         if shutdownPendingSince is not None:
             log.info(f'Idle conditions no longer met (battery: {battery_soc}%, hub solar: {hub_solar}W, ace solar: {ace_solar}W) — resetting shutdown timer.')

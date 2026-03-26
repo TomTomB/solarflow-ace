@@ -105,6 +105,8 @@ class Solarflow:
                         L:{self.outputLimit:>3}W{reset}'.split())
 
     def update(self):
+        if not self.masterSwitch:
+            return
         log.info(f'Triggering telemetry update: iot/{self.productId}/{self.deviceId}/properties/read')
         self.client.publish(f'iot/{self.productId}/{self.deviceId}/properties/read','{"properties": ["getAll"]}')
         self.client.publish(f'solarflow-hub/{self.deviceId}/telemetry/shouldStandby', 1 if self.shouldStandby else 0)

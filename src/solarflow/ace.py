@@ -59,6 +59,8 @@ class Ace:
                         D:{self.deviceId}{reset}'.split())
                             
     def update(self):
+        if not self.masterSwitch:
+            return
         log.info(f'Triggering Ace telemetry update: iot/{self.productId}/{self.deviceId}/properties/read')
         self.client.publish(f'iot/{self.productId}/{self.deviceId}/properties/read','{"properties": ["getAll"]}')
 
