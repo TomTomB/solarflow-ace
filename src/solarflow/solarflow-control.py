@@ -497,7 +497,8 @@ def _checkIdleShutdown(client: mqtt_client, hub):
     Devices wake themselves up again once solar returns."""
     global shutdownPendingSince
 
-    if BATTERY_LOW is None:
+    # hub.batteryLow is set from hub telemetry; -1 means not yet received
+    if hub.batteryLow < 0:
         return
 
     # hub is already shut down — nothing to do until it wakes up on its own
