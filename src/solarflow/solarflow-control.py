@@ -544,7 +544,6 @@ def _checkIdleShutdown(client: mqtt_client, hub):
             log.info(f'Idle shutdown timer started: battery at {battery_soc}% (≤ {BATTERY_LOW}%), no solar on hub or ace.')
         elif (datetime.now() - shutdownPendingSince).total_seconds() >= 900:
             log.info('Battery at minimum with no solar for 15 minutes — shutting down hub and ace.')
-            hub.setShouldStandby(False)
             hub.setMasterSwitch(False)
             if ace_unit:
                 ace_unit.setMasterSwitch(False)
