@@ -499,8 +499,11 @@ class Solarflow:
         # Hence setting the output limit 0 if SoC 0%
         # These safety checks must run before the rate-limit guard so they always take effect.
         if self.electricLevel <= self.batteryLow and not self.chargeThrough:
-            limit = 0
-            log.info(f'Battery is at low limit ({self.electricLevel} <= {self.batteryLow}) and charge through is off. Stop discharging, setting limit to {limit}')
+            # Allow solar pass-through: cap limit to current solar input so the hub can
+            # still feed solar directly to the house without discharging the battery.
+            solar = self.getSolarInputPower()
+            limit = min(limit, solar)
+            log.info(f'Battery is at low limit ({self.electricLevel} <= {self.batteryLow}) and charge through is off. Capping output to solar input ({solar}W), limit={limit}')
 
         if self.electricLevel == 0:
             limit = 0
