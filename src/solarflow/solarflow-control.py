@@ -217,6 +217,10 @@ def on_message(client, userdata, msg):
             case "gridChargeEnabled":
                 log.info(f'Updating GRID_CHARGE_ENABLED to {str2bool(value)}') if GRID_CHARGE_ENABLED != str2bool(value) else None
                 GRID_CHARGE_ENABLED = str2bool(value)
+            case "allowSimultaneousChargeDischarge":
+                flag = str2bool(value)
+                log.info(f'Updating allowSimultaneousChargeDischarge to {flag} (test mode: allow hub discharge while ACE charges)')
+                hub.allowSimultaneousChargeDischarge = flag
         
 
 def on_connect(client, userdata, flags, rc):

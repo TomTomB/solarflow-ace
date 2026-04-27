@@ -59,6 +59,7 @@ class Solarflow:
         self.lastSolarInputTS = None    # time of the last received solar input value
         self.batteryTarget = None
         self.allowFullCycle = not disable_full_discharge
+        self.allowSimultaneousChargeDischarge = False  # test flag: allow hub discharge while ACE charges
         
         self.batteryTargetSoCMax = -1
         self.batteryTargetSoCMin = -1
@@ -499,11 +500,16 @@ class Solarflow:
         # Hence setting the output limit 0 if SoC 0%
         # These safety checks must run before the rate-limit guard so they always take effect.
         if self.electricLevel <= self.batteryLow and not self.chargeThrough:
-            # Allow solar pass-through: cap limit to current solar input so the hub can
-            # still feed solar directly to the house without discharging the battery.
-            solar = self.getSolarInputPower()
-            limit = min(limit, solar)
-            log.info(f'Battery is at low limit ({self.electricLevel} <= {self.batteryLow}) and charge through is off. Capping output to solar input ({solar}W), limit={limit}')
+            if self.allowSimultaneousChargeDischarge:
+                # Test mode: allow full discharge while ACE charges simultaneously.
+                # Battery-low cap is intentionally skipped here to test hardware behaviour.
+                log.info(f'Battery is at low limit ({self.electricLevel} <= {self.batteryLow}), but allowSimultaneousChargeDischarge is active — allowing discharge (limit={limit})')
+            else:
+                # Allow solar pass-through: cap limit to current solar input so the hub can
+                # still feed solar directly to the house without discharging the battery.
+                solar = self.getSolarInputPower()
+                limit = min(limit, solar)
+                log.info(f'Battery is at low limit ({self.electricLevel} <= {self.batteryLow}) and charge through is off. Capping output to solar input ({solar}W), limit={limit}')
 
         if self.electricLevel == 0:
             limit = 0
