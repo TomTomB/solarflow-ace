@@ -217,11 +217,7 @@ def on_message(client, userdata, msg):
             case "gridChargeEnabled":
                 log.info(f'Updating GRID_CHARGE_ENABLED to {str2bool(value)}') if GRID_CHARGE_ENABLED != str2bool(value) else None
                 GRID_CHARGE_ENABLED = str2bool(value)
-            case "allowSimultaneousChargeDischarge":
-                flag = str2bool(value)
-                log.info(f'Updating allowSimultaneousChargeDischarge to {flag} (test mode: allow hub discharge while ACE charges)')
-                hub.allowSimultaneousChargeDischarge = flag
-        
+
 
 def on_connect(client, userdata, flags, rc):
     if rc == 0:
@@ -306,31 +302,43 @@ def getSFPowerLimit(hub, demand) -> int:
             limit = hub.getInverseMaxPower()
 
     if not hub.getBypass():
-        if hub_solarpower - demand > MIN_CHARGE_POWER:
-            path += "1." 
+        surplus = hub_solarpower - demand
+        in_night_window = (now < (sunrise + sunrise_off) or now > sunset - sunset_off)
+        in_sunrise_window = sunrise < now < (sunrise + sunrise_off)
+
+        log.info(f'getSFPowerLimit: demand={demand:.1f}W, hub_solar={hub_solarpower:.1f}W, surplus={surplus:.1f}W, '
+                 f'battery={hub_electricLevel}%, discharge_start={BATTERY_DISCHARGE_START}%, '
+                 f'in_night_window={in_night_window}, in_sunrise_window={in_sunrise_window}, '
+                 f'discharge_daytime={DISCHARGE_DURING_DAYTIME}, batteryTarget={hub.batteryTarget}')
+
+        if surplus > MIN_CHARGE_POWER:
+            path += "1."
             if hub_solarpower - MIN_CHARGE_POWER < MAX_DISCHARGE_POWER:
                 path += "1."
                 limit = min(demand,MAX_DISCHARGE_POWER)
+                log.info(f'Solar surplus ({surplus:.1f}W) > MIN_CHARGE_POWER ({MIN_CHARGE_POWER}W), solar-MIN < MAX_DISCHARGE → limit=min(demand,MAX_DISCHARGE)={limit:.1f}W')
             else:
                 path += "2."
                 limit = min(demand,hub_solarpower - MIN_CHARGE_POWER)
-        if hub_solarpower - demand <= MIN_CHARGE_POWER:  
+                log.info(f'Solar surplus ({surplus:.1f}W) > MIN_CHARGE_POWER ({MIN_CHARGE_POWER}W), solar-MIN >= MAX_DISCHARGE → limit=min(demand,solar-min)={limit:.1f}W')
+        if surplus <= MIN_CHARGE_POWER:
             path += "2."
-            if ((now < (sunrise + sunrise_off) or now > sunset - sunset_off) or DISCHARGE_DURING_DAYTIME): 
+            if (in_night_window or DISCHARGE_DURING_DAYTIME):
                 path += "1."
-                # FEAT: we should not allow discharging in the sunrise window if battery is still below a certain threshold
-                # e.g. if the battery has just started charging do not discharge it again immediately
-                if (sunrise < now < (sunrise + sunrise_off)) and hub_electricLevel <= BATTERY_DISCHARGE_START and hub.batteryTarget != solarflow.BATTERY_TARGET_DISCHARGING:
+                if in_sunrise_window and hub_electricLevel <= BATTERY_DISCHARGE_START and hub.batteryTarget != solarflow.BATTERY_TARGET_DISCHARGING:
                     path += "1."
                     limit = 0
+                    log.info(f'Sunrise window: battery={hub_electricLevel}% <= discharge_start={BATTERY_DISCHARGE_START}% and not yet discharging → holding limit=0 to allow charging first')
                 else:
                     path += "2."
                     limit = min(demand,MAX_DISCHARGE_POWER)
+                    log.info(f'Discharging allowed (night_window={in_night_window}, discharge_daytime={DISCHARGE_DURING_DAYTIME}) → limit=min(demand,MAX_DISCHARGE)={limit:.1f}W')
             else:
-                path += "2."  
-                #limit = 0 if hub_solarpower - MIN_CHARGE_POWER < 0 and hub.getElectricLevel() < 100 else hub_solarpower - MIN_CHARGE_POWER                                   
+                path += "2."
                 limit = 0 if hub_solarpower - MIN_CHARGE_POWER < 0 else hub_solarpower - MIN_CHARGE_POWER
+                log.info(f'Daytime, discharge not allowed → solar pass-through only: limit={limit:.1f}W')
         if demand < 0:
+            log.info(f'Demand is negative ({demand:.1f}W), overproducing → setting limit=0')
             limit = 0
 
     # get battery Soc at sunset/sunrise
@@ -394,6 +402,8 @@ def limitHomeInput(client: mqtt_client):
     remainder = demand - direct_panel_power - hub_power        # eq grid_power
     hub_contribution_ask = hub_power+remainder     # the power we need from hub
     hub_contribution_ask = 0 if hub_contribution_ask < 0 else hub_contribution_ask
+
+    log.info(f'Power breakdown: grid={grid_power:.1f}W, panels_ac={direct_panel_power:.1f}W, hub_ac={hub_power:.1f}W → demand={demand:.1f}W, hub_ask={hub_contribution_ask:.1f}W')
 
 
     # sunny, producing
@@ -577,6 +587,8 @@ def _checkGridCharge(client: mqtt_client, hub):
     battery_soc = hub.getElectricLevel()
     no_solar = hub_solar == 0 and ace_solar == 0
 
+    log.info(f'Grid charge check: battery={battery_soc}% (low={BATTERY_LOW}%), hub_solar={hub_solar:.1f}W, ace_solar={ace_solar:.1f}W, no_solar={no_solar}, acSwitch={ace_unit.acSwitch}')
+
     if battery_soc <= BATTERY_LOW and no_solar and not ace_unit.acSwitch:
         log.info(f'Battery at {battery_soc}% (min {BATTERY_LOW}%), no solar — enabling grid charging via ACE until {BATTERY_LOW}%.')
         ace_unit.setAcSwitch(True)
@@ -584,6 +596,8 @@ def _checkGridCharge(client: mqtt_client, hub):
         reason = f'target SoC {BATTERY_LOW}% reached' if battery_soc >= BATTERY_LOW else f'solar available (hub: {hub_solar}W, ace: {ace_solar}W)'
         log.info(f'Stopping grid charging: {reason}.')
         ace_unit.setAcSwitch(False)
+    else:
+        log.info(f'Grid charging conditions not met (acSwitch={ace_unit.acSwitch}, battery={battery_soc}% vs low={BATTERY_LOW}%, no_solar={no_solar}) — no change.')
 
 
 def getOpts(configtype) -> dict:

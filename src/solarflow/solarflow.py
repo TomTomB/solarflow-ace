@@ -59,7 +59,6 @@ class Solarflow:
         self.lastSolarInputTS = None    # time of the last received solar input value
         self.batteryTarget = None
         self.allowFullCycle = not disable_full_discharge
-        self.allowSimultaneousChargeDischarge = False  # test flag: allow hub discharge while ACE charges
         
         self.batteryTargetSoCMax = -1
         self.batteryTargetSoCMin = -1
@@ -495,38 +494,29 @@ class Solarflow:
         if limit < 0:
             limit = 0
 
-        # If battery SoC reaches 0% during night, it has been observed that in the morning with first light, residual energy in the batteries gets released
-        # Hub goes then into error and no charging occurs (probably deep discharge assumed by the battery).
-        # Hence setting the output limit 0 if SoC 0%
+        requested_limit = limit
+        log.info(f'setOutputLimit: requested={requested_limit}W, battery={self.electricLevel}% (low={self.batteryLow}%, chargeThrough={self.chargeThrough}), solar={self.getSolarInputPower():.1f}W')
+
         # These safety checks must run before the rate-limit guard so they always take effect.
         if self.electricLevel <= self.batteryLow and not self.chargeThrough:
-            if self.allowSimultaneousChargeDischarge:
-                # Test mode: allow full discharge while ACE charges simultaneously.
-                # Battery-low cap is intentionally skipped here to test hardware behaviour.
-                log.info(f'Battery is at low limit ({self.electricLevel} <= {self.batteryLow}), but allowSimultaneousChargeDischarge is active — allowing discharge (limit={limit})')
-            else:
-                # Allow solar pass-through: cap limit to current solar input so the hub can
-                # still feed solar directly to the house without discharging the battery.
-                solar = self.getSolarInputPower()
-                limit = min(limit, solar)
-                log.info(f'Battery is at low limit ({self.electricLevel} <= {self.batteryLow}) and charge through is off. Capping output to solar input ({solar}W), limit={limit}')
+            # Allow solar pass-through: cap limit to current solar input so the hub can
+            # still feed solar directly to the house without discharging the battery.
+            solar = self.getSolarInputPower()
+            limit = min(limit, solar)
+            log.info(f'Battery at low limit ({self.electricLevel}% <= {self.batteryLow}%), capping output to solar ({solar:.1f}W) → limit={limit}W')
 
         if self.electricLevel == 0:
             limit = 0
-            log.info(f'Battery is empty! Disabling solarflow output, setting limit to {limit}')
+            log.info(f'Battery empty! Forcing limit=0')
 
         if self.lastLimitTS:
             elapsed = now - self.lastLimitTS
             if elapsed.total_seconds() < 30:
-                log.info(f'Hub has recently adjusted limit, need to wait until it is set again! Current limit: {self.outputLimit:.0f}, new limit: {limit:.1f}')
+                log.info(f'Rate-limit guard: last set {elapsed.total_seconds():.0f}s ago (<30s), keeping current limit={self.outputLimit:.0f}W (requested={requested_limit}W)')
                 return self.outputLimit
 
-        # Charge-Through:
-        # If charge-through is enabled the hub will not provide any power if the last full state is to long ago
-        # this ensures regular loading to 100% to avoid battery-drift            
         if self.chargeThrough and limit > 0 and self.chargeThroughStage == BATTERY_TARGET_CHARGING:
-            log.info(f'Charge-Through is active! To ensure it is fully charged at least every {self.fullChargeInterval}hrs not discharging now!')
-            # either limit to 0 or only give away what is higher than min_charge_level
+            log.info(f'Charge-Through active (stage=charging, interval={self.fullChargeInterval}h) → forcing limit=0, no discharge until full')
             limit = 0
 
         # SF takes ~1 minute to apply the limit to actual output, so better smoothen the limit to avoid output spikes on short demand spikes
