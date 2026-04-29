@@ -405,11 +405,12 @@ def limitHomeInput(client: mqtt_client):
     # sunny, producing
     if direct_panel_power > 0:
         if demand < direct_panel_power:
-            # we can conver demand with direct panel power, just use all of it
+            # Direct panels can cover the load, so pull the inverter back to the actual
+            # demand instead of holding it near current production and feeding into grid.
             log.info(f'Direct connected panels ({direct_panel_power:.1f}W) can cover demand ({demand:.1f}W)')
-            #direct_limit = getDirectPanelLimit(inv,hub,smt)
-            # keep inverter limit where it is, no need to change
-            direct_limit = getDirectPanelLimit(inv,hub,smt)
+            direct_producing_channels = max(1, len(list(filter(lambda value: value > 0, inv.getDirectDCPowerValues()))))
+            direct_limit = demand / direct_producing_channels
+            log.info(f'Reducing direct panel limit to demand: {demand:.1f}W across {direct_producing_channels} direct channels → {direct_limit:.1f}W/channel')
             hub_limit = hub.setOutputLimit(0)
         else:
             # we need contribution from hub, if possible and/or try to get more from direct panels
