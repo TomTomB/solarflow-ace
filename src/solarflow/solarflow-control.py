@@ -405,13 +405,22 @@ def limitHomeInput(client: mqtt_client):
     # sunny, producing
     if direct_panel_power > 0:
         if demand < direct_panel_power:
-            # Direct panels can cover the load, so pull the inverter back to the actual
-            # demand instead of holding it near current production and feeding into grid.
+            # Direct panels can cover the load. Usually we pull the inverter back to the
+            # actual demand to avoid feed-in, except when the hub battery is already full:
+            # in that case we prefer exporting excess hub solar over curtailing it.
             log.info(f'Direct connected panels ({direct_panel_power:.1f}W) can cover demand ({demand:.1f}W)')
-            direct_producing_channels = max(1, len(list(filter(lambda value: value > 0, inv.getDirectDCPowerValues()))))
-            direct_limit = demand / direct_producing_channels
-            log.info(f'Reducing direct panel limit to demand: {demand:.1f}W across {direct_producing_channels} direct channels → {direct_limit:.1f}W/channel')
-            hub_limit = hub.setOutputLimit(0)
+            battery_full = hub.getElectricLevel() >= hub.batteryHigh and not hub.chargeThrough
+            if battery_full and not hub.getBypass() and hub.getSolarInputPower() > 0:
+                remaining_ac_headroom = max(0, inv.acLimit - direct_panel_power)
+                remaining_dc_headroom = remaining_ac_headroom / (inv.getEfficiency()/100) if inv.getEfficiency() > 0 else 0
+                hub_limit = hub.setOutputLimit(min(hub.getInverseMaxPower(), remaining_dc_headroom))
+                direct_limit = getDirectPanelLimit(inv, hub, smt)
+                log.info(f'Battery is full ({hub.getElectricLevel()}% >= {hub.batteryHigh}%), allowing hub solar export up to AC headroom: ac_headroom={remaining_ac_headroom:.1f}W, dc_headroom={remaining_dc_headroom:.1f}W, hub_limit={hub_limit:.1f}W')
+            else:
+                direct_producing_channels = max(1, len(list(filter(lambda value: value > 0, inv.getDirectDCPowerValues()))))
+                direct_limit = demand / direct_producing_channels
+                log.info(f'Reducing direct panel limit to demand: {demand:.1f}W across {direct_producing_channels} direct channels → {direct_limit:.1f}W/channel')
+                hub_limit = hub.setOutputLimit(0)
         else:
             # we need contribution from hub, if possible and/or try to get more from direct panels
             log.info(f'Direct connected panels ({direct_panel_power:.1f}W) can\'t cover demand ({demand:.1f}W), trying to get {hub_contribution_ask:.1f}W from hub.')
