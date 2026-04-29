@@ -313,14 +313,9 @@ def getSFPowerLimit(hub, demand) -> int:
 
         if surplus > MIN_CHARGE_POWER:
             path += "1."
-            if hub_solarpower - MIN_CHARGE_POWER < MAX_DISCHARGE_POWER:
-                path += "1."
-                limit = min(demand,MAX_DISCHARGE_POWER)
-                log.info(f'Solar surplus ({surplus:.1f}W) > MIN_CHARGE_POWER ({MIN_CHARGE_POWER}W), solar-MIN < MAX_DISCHARGE → limit=min(demand,MAX_DISCHARGE)={limit:.1f}W')
-            else:
-                path += "2."
-                limit = min(demand,hub_solarpower - MIN_CHARGE_POWER)
-                log.info(f'Solar surplus ({surplus:.1f}W) > MIN_CHARGE_POWER ({MIN_CHARGE_POWER}W), solar-MIN >= MAX_DISCHARGE → limit=min(demand,solar-min)={limit:.1f}W')
+            # Überschuss vorhanden: Solar kann Demand decken + laden
+            limit = demand
+            log.info(f'Solar surplus ({surplus:.1f}W) > MIN_CHARGE_POWER ({MIN_CHARGE_POWER}W) → covering demand, battery charges with excess: limit={limit:.1f}W')
         if surplus <= MIN_CHARGE_POWER:
             path += "2."
             if (in_night_window or DISCHARGE_DURING_DAYTIME):
@@ -331,12 +326,13 @@ def getSFPowerLimit(hub, demand) -> int:
                     log.info(f'Sunrise window: battery={hub_electricLevel}% <= discharge_start={BATTERY_DISCHARGE_START}% and not yet discharging → holding limit=0 to allow charging first')
                 else:
                     path += "2."
-                    limit = min(demand,MAX_DISCHARGE_POWER)
-                    log.info(f'Discharging allowed (night_window={in_night_window}, discharge_daytime={DISCHARGE_DURING_DAYTIME}) → limit=min(demand,MAX_DISCHARGE)={limit:.1f}W')
+                    # No solar surplus but discharging allowed: try to cover full demand with battery help
+                    limit = demand
+                    log.info(f'No solar surplus (discharge allowed): discharging to cover demand={demand:.1f}W → limit={limit:.1f}W')
             else:
                 path += "2."
-                limit = 0 if hub_solarpower - MIN_CHARGE_POWER < 0 else hub_solarpower - MIN_CHARGE_POWER
-                log.info(f'Daytime, discharge not allowed → solar pass-through only: limit={limit:.1f}W')
+                limit = max(0, hub_solarpower - MIN_CHARGE_POWER)
+                log.info(f'Daytime, discharge not allowed → solar pass-through only with MIN_CHARGE reservation: limit={limit:.1f}W')
         if demand < 0:
             log.info(f'Demand is negative ({demand:.1f}W), overproducing → setting limit=0')
             limit = 0
