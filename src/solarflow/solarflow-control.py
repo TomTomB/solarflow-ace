@@ -274,6 +274,10 @@ def getDirectPanelLimit(inv, hub, smt) -> int:
     else:
         return int(MAX_INVERTER_LIMIT*(inv.getNrHubChannels()/inv.getNrProducingChannels()))
 
+
+def getBypassExportLimit(inv) -> float:
+    return inv.acLimit / inv.getNrTotalChannels()
+
 def getSFPowerLimit(hub, demand) -> int:
     hub_electricLevel = hub.getElectricLevel()
     hub_solarpower = hub.getSolarInputPower()
@@ -410,9 +414,9 @@ def limitHomeInput(client: mqtt_client):
             # then the battery is full and excess solar should be exported instead of curtailed.
             log.info(f'Direct connected panels ({direct_panel_power:.1f}W) can cover demand ({demand:.1f}W)')
             if hub.getBypass():
-                direct_limit = getDirectPanelLimit(inv, hub, smt)
+                direct_limit = getBypassExportLimit(inv)
                 hub_limit = hub.getInverseMaxPower()
-                log.info(f'Bypass is active (battery full), keeping inverter open for export up to AC limit: direct_limit={direct_limit:.1f}W/channel, hub_limit={hub_limit:.1f}W')
+                log.info(f'Bypass is active (battery full), opening inverter for export up to AC limit: direct_limit={direct_limit:.1f}W/channel, hub_limit={hub_limit:.1f}W')
             elif hub.getElectricLevel() >= hub.batteryHigh and not hub.chargeThrough and hub.getSolarInputPower() > 0:
                 remaining_ac_headroom = max(0, inv.acLimit - direct_panel_power)
                 remaining_dc_headroom = remaining_ac_headroom / (inv.getEfficiency()/100) if inv.getEfficiency() > 0 else 0
@@ -434,13 +438,18 @@ def limitHomeInput(client: mqtt_client):
                 # if the max of direct channel power is close to the channel limit we should increase the limit first to eventually get more from direct panels 
                 if inv.isWithin(max(inv.getDirectDCPowerValues()) * (inv.getEfficiency()/100),inv.getChannelLimit(),10*inv.getNrTotalChannels()):
                     log.info(f'The current max direct channel power {(max(inv.getDirectDCPowerValues()) * (inv.getEfficiency()/100)):.1f}W is close to the current channel limit {inv.getChannelLimit():.1f}W, trying to get more from direct panels.')
-                    
+
                     sf_contribution = getSFPowerLimit(hub,hub_contribution_ask)
-                    hub_limit = hub.getLimit()
-                    # in case of hub contribution ask has changed to lower than current value, we should lower it
-                    if sf_contribution < hub_limit:
-                        hub.setOutputLimit(sf_contribution)
-                    direct_limit = getDirectPanelLimit(inv,hub,smt)
+                    if hub.getBypass():
+                        hub_limit = hub.getInverseMaxPower()
+                        direct_limit = getBypassExportLimit(inv)
+                        log.info(f'Bypass is active, skipping demand-based panel tracking and opening inverter for export: direct_limit={direct_limit:.1f}W/channel, hub_limit={hub_limit:.1f}W')
+                    else:
+                        hub_limit = hub.getLimit()
+                        # in case of hub contribution ask has changed to lower than current value, we should lower it
+                        if sf_contribution < hub_limit:
+                            hub.setOutputLimit(sf_contribution)
+                        direct_limit = getDirectPanelLimit(inv,hub,smt)
                 else:
                     # check what hub is currently  willing to contribute
                     sf_contribution = getSFPowerLimit(hub,hub_contribution_ask)
