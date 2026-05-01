@@ -1,5 +1,7 @@
 import json
 import random, time, logging, sys, getopt, os
+import shutil
+import subprocess
 from datetime import datetime, timedelta
 from functools import reduce
 from paho.mqtt import client as mqtt_client
@@ -93,6 +95,10 @@ BATTERY_DISCHARGE_START = config.getint('control', 'battery_discharge_start', fa
 # set to false (default) to disable
 GRID_CHARGE_ENABLED =   None
 
+# interval for ping-based wake detection once device polling has been paused
+DEVICE_PING_INTERVAL =  config.getint('control', 'device_ping_interval', fallback=None) \
+                        or int(os.environ.get('DEVICE_PING_INTERVAL',30))
+
 # the maximum allowed inverter output
 MAX_INVERTER_LIMIT =    config.getint('control', 'max_inverter_limit', fallback=None) \
                         or int(os.environ.get('MAX_INVERTER_LIMIT',800))
@@ -126,6 +132,8 @@ location: LocationInfo
 
 lastTriggerTS:datetime = None
 shutdownPendingSince:datetime = None
+pingCommandLoggedMissing = False
+pingBinary = shutil.which('ping')
 
 class MyLocation:
     def getCoordinates(self) -> tuple:
@@ -293,6 +301,112 @@ def getBypassExportLimit(inv) -> float:
 def isBypassExportActive(hub) -> bool:
     return hub.getBypass()
 
+
+def setTelemetryPolling(hub, ace_unit, state: bool):
+    hub.setTelemetryPolling(state)
+    if ace_unit:
+        ace_unit.setTelemetryPolling(state)
+
+
+def pingDevice(ip_address: str):
+    global pingCommandLoggedMissing
+
+    if not ip_address:
+        return None
+
+    if pingBinary is None:
+        if not pingCommandLoggedMissing:
+            log.warning('ping command not found — device wake detection via ICMP is disabled.')
+            pingCommandLoggedMissing = True
+        return None
+
+    result = subprocess.run(
+        [pingBinary, '-c', '1', '-W', '1', ip_address],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        check=False,
+    )
+    return result.returncode == 0
+
+
+def checkDeviceWakeState(device, label: str) -> bool:
+    if device.masterSwitch:
+        return False
+
+    reachable = pingDevice(device.deviceIP)
+    if reachable is None:
+        return False
+
+    if device.pingReachable != reachable:
+        log.info(f'{label} ping {device.deviceIP} is {"online" if reachable else "offline"}.')
+        device.pingReachable = reachable
+
+    if not reachable:
+        if not device.pingWakeArmed:
+            device.pingWakeArmed = True
+            log.info(f'{label} is offline after master switch off — wake detection armed.')
+        return False
+
+    if device.pingWakeArmed:
+        device.pingWakeArmed = False
+        device.masterSwitch = True
+        device.setTelemetryPolling(True)
+        log.info(f'{label} is reachable again after being offline — resuming MQTT telemetry polling.')
+        device.update()
+        return True
+
+    return False
+
+
+def checkDevicePresence(client: mqtt_client):
+    global shutdownPendingSince
+
+    hub = client._userdata.get('hub')
+    ace_unit = client._userdata.get('ace')
+    if hub is None:
+        return
+
+    hub_woke = checkDeviceWakeState(hub, 'Hub') if hub.deviceIP else False
+    ace_woke = checkDeviceWakeState(ace_unit, 'Ace') if ace_unit and ace_unit.deviceIP else False
+
+    if hub_woke:
+        shutdownPendingSince = None
+        hub.setShouldStandby(False)
+        if ace_unit and ace_unit.masterSwitch:
+            ace_unit.setTelemetryPolling(True)
+
+    if hub_woke or ace_woke:
+        limit_callback(client, force=True)
+
+
+def getLiveSolarState(hub, ace_unit):
+    now = datetime.now()
+
+    hub_stale = hub.lastSolarInputTS is None or (now - hub.lastSolarInputTS).total_seconds() > 120
+    hub_solar = 0 if hub_stale else hub.getSolarInputPower()
+
+    if ace_unit:
+        ace_last = ace_unit.lastSolarInputTS or ace_unit.startTS
+        ace_stale = (now - ace_last).total_seconds() > 120
+        ace_solar = 0 if ace_stale else ace_unit.getSolarInputPower()
+    else:
+        ace_stale = False
+        ace_solar = 0
+
+    return hub_solar, ace_solar, hub_stale, ace_stale
+
+
+def shouldPauseHubControlForStandby(hub, ace_unit) -> bool:
+    if not hub.shouldStandby:
+        return False
+
+    battery_soc = hub.getElectricLevel()
+    if battery_soc < 0 or hub.batteryLow < 0:
+        return False
+
+    hub_solar, ace_solar, _, _ = getLiveSolarState(hub, ace_unit)
+    return battery_soc <= hub.batteryLow and hub_solar == 0 and ace_solar == 0 and not (ace_unit and ace_unit.acSwitch)
+
 def getSFPowerLimit(hub, demand) -> int:
     hub_electricLevel = hub.getElectricLevel()
     hub_solarpower = hub.getSolarInputPower()
@@ -389,10 +503,17 @@ def limitHomeInput(client: mqtt_client):
 
     hub = client._userdata['hub']
     log.info(f'{hub}')
+    ace_unit = client._userdata.get('ace')
     inv = client._userdata['dtu']
     log.info(f'{inv}')
     smt = client._userdata['smartmeter']
     log.info(f'{smt}')
+
+    if shouldPauseHubControlForStandby(hub, ace_unit):
+        hub_solar, ace_solar, _, _ = getLiveSolarState(hub, ace_unit)
+        log.info(f'Hub standby pending and idle conditions still hold (battery={hub.getElectricLevel()}%, hub_low={hub.batteryLow}%, hub_solar={hub_solar}W, ace_solar={ace_solar}W) — forcing hub limit to 0 and skipping demand-based regulation.')
+        hub.setOutputLimit(0)
+        return
 
     # ensure we have data to work on
     if not(hub.ready() and inv.ready() and smt.ready()):
@@ -558,20 +679,7 @@ def _checkIdleShutdown(client: mqtt_client, hub):
         return
 
     ace_unit = client._userdata.get('ace')
-    now = datetime.now()
-
-    # Consider solar as 0 if the buffer hasn't been updated in >120s.
-    # This guards against getSolarInputPower() returning stale daytime values
-    # when no hub telemetry arrives (e.g. device fully idle at night).
-    hub_stale = hub.lastSolarInputTS is None or (now - hub.lastSolarInputTS).total_seconds() > 120
-    hub_solar = 0 if hub_stale else hub.getSolarInputPower()
-
-    if ace_unit:
-        ace_last = ace_unit.lastSolarInputTS or ace_unit.startTS
-        ace_stale = (now - ace_last).total_seconds() > 120
-        ace_solar = 0 if ace_stale else ace_unit.getSolarInputPower()
-    else:
-        ace_solar = 0
+    hub_solar, ace_solar, hub_stale, ace_stale = getLiveSolarState(hub, ace_unit)
 
     battery_soc = hub.getElectricLevel()
 
@@ -580,6 +688,8 @@ def _checkIdleShutdown(client: mqtt_client, hub):
         if shutdownPendingSince is not None:
             log.info('Grid charging active — resetting idle shutdown timer.')
             shutdownPendingSince = None
+        hub.setShouldStandby(False)
+        setTelemetryPolling(hub, ace_unit, True)
         return
 
     # idle = battery fully discharged to minimum AND no solar on any source
@@ -587,13 +697,13 @@ def _checkIdleShutdown(client: mqtt_client, hub):
     # BATTERY_LOW which may be stale/out-of-sync with the hub's own retained value
     battery_at_min = battery_soc > -1 and battery_soc <= hub.batteryLow
     idle = battery_at_min and hub_solar == 0 and ace_solar == 0
-    log.info(f'Idle check: battery={battery_soc}% (hub_low={hub.batteryLow}%, at_min={battery_at_min}), hub_solar={hub_solar}W (stale={hub_stale}), ace_solar={ace_solar}W → idle={idle}')
+    log.info(f'Idle check: battery={battery_soc}% (hub_low={hub.batteryLow}%, at_min={battery_at_min}), hub_solar={hub_solar}W (stale={hub_stale}), ace_solar={ace_solar}W (stale={ace_stale}) → idle={idle}')
 
     if idle:
         if shutdownPendingSince is None:
             shutdownPendingSince = datetime.now()
             hub.setShouldStandby(True)
-            log.info(f'Idle shutdown timer started: battery at {battery_soc}% (≤ {BATTERY_LOW}%), no solar on hub or ace.')
+            log.info(f'Idle shutdown timer started: battery at {battery_soc}% (≤ {hub.batteryLow}%), no solar on hub or ace.')
         elif (datetime.now() - shutdownPendingSince).total_seconds() >= 900:
             log.info('Battery at minimum with no solar for 15 minutes — shutting down hub and ace.')
             hub.setMasterSwitch(False)
@@ -604,6 +714,7 @@ def _checkIdleShutdown(client: mqtt_client, hub):
         if shutdownPendingSince is not None:
             log.info(f'Idle conditions no longer met (battery: {battery_soc}%, hub solar: {hub_solar}W, ace solar: {ace_solar}W) — resetting shutdown timer.')
         hub.setShouldStandby(False)
+        setTelemetryPolling(hub, ace_unit, True)
         shutdownPendingSince = None
 
 
@@ -620,22 +731,25 @@ def _checkGridCharge(client: mqtt_client, hub):
     if ace_unit is None:
         return
 
-    hub_solar = hub.getSolarInputPower()
-    ace_solar = ace_unit.solarInputPower if ace_unit else 0
+    battery_low = hub.batteryLow if hub.batteryLow >= 0 else BATTERY_LOW
+    hub_solar, ace_solar, hub_stale, ace_stale = getLiveSolarState(hub, ace_unit)
     battery_soc = hub.getElectricLevel()
     no_solar = hub_solar == 0 and ace_solar == 0
 
-    log.info(f'Grid charge check: battery={battery_soc}% (low={BATTERY_LOW}%), hub_solar={hub_solar:.1f}W, ace_solar={ace_solar:.1f}W, no_solar={no_solar}, acSwitch={ace_unit.acSwitch}')
+    log.info(f'Grid charge check: battery={battery_soc}% (low={battery_low}%), hub_solar={hub_solar:.1f}W (stale={hub_stale}), ace_solar={ace_solar:.1f}W (stale={ace_stale}), no_solar={no_solar}, acSwitch={ace_unit.acSwitch}')
 
-    if battery_soc <= BATTERY_LOW and no_solar and not ace_unit.acSwitch:
-        log.info(f'Battery at {battery_soc}% (min {BATTERY_LOW}%), no solar — enabling grid charging via ACE until {BATTERY_LOW}%.')
+    if battery_low is None:
+        return
+
+    if battery_soc <= battery_low and no_solar and not ace_unit.acSwitch:
+        log.info(f'Battery at {battery_soc}% (min {battery_low}%), no solar — enabling grid charging via ACE until {battery_low}%.')
         ace_unit.setAcSwitch(True)
-    elif ace_unit.acSwitch and (battery_soc >= BATTERY_LOW or not no_solar):
-        reason = f'target SoC {BATTERY_LOW}% reached' if battery_soc >= BATTERY_LOW else f'solar available (hub: {hub_solar}W, ace: {ace_solar}W)'
+    elif ace_unit.acSwitch and (battery_soc >= battery_low or not no_solar):
+        reason = f'target SoC {battery_low}% reached' if battery_soc >= battery_low else f'solar available (hub: {hub_solar}W, ace: {ace_solar}W)'
         log.info(f'Stopping grid charging: {reason}.')
         ace_unit.setAcSwitch(False)
     else:
-        log.info(f'Grid charging conditions not met (acSwitch={ace_unit.acSwitch}, battery={battery_soc}% vs low={BATTERY_LOW}%, no_solar={no_solar}) — no change.')
+        log.info(f'Grid charging conditions not met (acSwitch={ace_unit.acSwitch}, battery={battery_soc}% vs low={battery_low}%, no_solar={no_solar}) — no change.')
 
 
 def getOpts(configtype) -> dict:
@@ -759,6 +873,7 @@ def run():
     log.info(f'  BATTERY_DISCHARGE_START = {BATTERY_DISCHARGE_START}')
     log.info(f'  DISCHARGE_DURING_DAYTIME = {DISCHARGE_DURING_DAYTIME}')
     log.info(f'  GRID_CHARGE_ENABLED = {GRID_CHARGE_ENABLED}')
+    log.info(f'  DEVICE_PING_INTERVAL = {DEVICE_PING_INTERVAL}')
 
     
     hub = solarflow.Solarflow(client=client,callback=limit_callback,**hub_opts)
@@ -773,6 +888,7 @@ def run():
 
     infotimer = RepeatedTimer(120, deviceInfo, client)
     idletimer = RepeatedTimer(300, _checkIdleShutdown, client, hub)
+    pingtimer = RepeatedTimer(DEVICE_PING_INTERVAL, checkDevicePresence, client)
 
     # subscribe Hub, DTU and Smartmeter so that they can react on received messages
     hub.subscribe()

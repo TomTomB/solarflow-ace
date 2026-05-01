@@ -28,15 +28,16 @@ INVERTER_BRAND = {0: 'Other', 1: 'Hoymiles', 2: 'Enphase', 3: 'APsystems', 4: 'A
 
 
 class Solarflow:
-    opts = {"product_id":str, "device_id":str ,"full_charge_interval":int, "control_bypass":bool, "control_soc":bool, "disable_full_discharge":bool}
+    opts = {"product_id":str, "device_id":str, "device_ip":str, "full_charge_interval":int, "control_bypass":bool, "control_soc":bool, "disable_full_discharge":bool}
 
     def default_calllback(self):
         log.info("default callback")
 
-    def __init__(self, client: mqtt_client, product_id:str, device_id:str, full_charge_interval:int, control_bypass:bool = False, control_soc:bool = False, disable_full_discharge:bool = False, callback = default_calllback):
+    def __init__(self, client: mqtt_client, product_id:str, device_id:str, device_ip:str = None, full_charge_interval:int = 32, control_bypass:bool = False, control_soc:bool = False, disable_full_discharge:bool = False, callback = default_calllback):
         self.client = client
         self.productId = product_id
         self.deviceId = device_id
+        self.deviceIP = device_ip
         self.fullChargeInterval = full_charge_interval
         self.fwVersion = "unknown"
         self.solarInputValues = TimewindowBuffer(minutes=1)
@@ -79,6 +80,9 @@ class Solarflow:
         self.lastLimitTS = None
         self.masterSwitch = True
         self.shouldStandby = False
+        self.telemetryPollingEnabled = True
+        self.pingReachable = None
+        self.pingWakeArmed = False
 
         client.publish(f'solarflow-hub/{self.deviceId}/telemetry/shouldStandby', 0)
         client.publish(f'solarflow-hub/{self.deviceId}/control/controlBypass',str(self.control_bypass),retain=True)
@@ -105,7 +109,7 @@ class Solarflow:
                         L:{self.outputLimit:>3}W{reset}'.split())
 
     def update(self):
-        if not self.masterSwitch:
+        if not self.masterSwitch or not self.telemetryPollingEnabled:
             return
         log.info(f'Triggering telemetry update: iot/{self.productId}/{self.deviceId}/properties/read')
         self.client.publish(f'iot/{self.productId}/{self.deviceId}/properties/read','{"properties": ["getAll"]}')
@@ -175,6 +179,8 @@ class Solarflow:
         if value > 0 and not self.masterSwitch:
             log.info('Hub solar detected while master switch was off — device woke up on its own, syncing state.')
             self.masterSwitch = True
+            self.telemetryPollingEnabled = True
+            self.pingWakeArmed = False
 
         # TODO: experimental, trigger limit calculation only on significant changes of smartmeter
         previous = self.solarInputValues.previous()
@@ -549,12 +555,21 @@ class Solarflow:
         self.client.publish(f'solarflow-hub/{self.deviceId}/telemetry/shouldStandby', 1 if state else 0)
         log.info(f'Hub shouldStandby set to {state}')
 
+    def setTelemetryPolling(self, state: bool):
+        if self.telemetryPollingEnabled == state:
+            return
+        self.telemetryPollingEnabled = state
+        log.info(f'Hub telemetry polling {"enabled" if state else "paused"}')
+
     def setMasterSwitch(self, state: bool):
         if self.masterSwitch == state:
             return
         master = {"properties": {"masterSwitch": 1 if state else 0}}
         (not self.dryrun) and self.client.publish(self.property_topic, json.dumps(master))
         self.masterSwitch = state
+        if not state:
+            self.telemetryPollingEnabled = False
+            self.pingWakeArmed = False
         log.info(f'{"[DRYRUN] " if self.dryrun else ""}Turning hub master switch {"ON" if state else "OFF"}')
 
         if not state:
