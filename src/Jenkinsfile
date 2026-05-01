@@ -37,13 +37,13 @@ pipeline {
                 container('docker-buildx') {
                     dir("${env.WORKSPACE}/src"){
                         sh label: 'Set up X-Builder', script: 'docker buildx create --name crossbuilder --platform linux/amd64,linux/arm64,linux/arm/v7 && docker buildx ls && docker buildx use crossbuilder && docker buildx inspect --bootstrap'
-                        sh label: 'Build solarflow-control', script: 'docker buildx build --platform linux/amd64,linux/arm64,linux/arm/v7 -t ${DOCKER_REGISTRY}/solarflow-control:${BRANCH_NAME} .'
+                        sh label: 'Build solarflow-control', script: 'docker buildx build --platform linux/amd64,linux/arm64,linux/arm/v7 --build-arg APP_VERSION=${BRANCH_NAME}-${GIT_COMMIT.take(12)} --build-arg GIT_COMMIT=${GIT_COMMIT} --build-arg GIT_BRANCH=${BRANCH_NAME} --build-arg BUILD_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ) -t ${DOCKER_REGISTRY}/solarflow-control:${BRANCH_NAME} .'
                     }
                     script {
                         if (env.BRANCH_NAME == 'master') {
                             dir("${env.WORKSPACE}/src"){
                                 sh label: 'Set up X-Builder', script: 'docker buildx rm crossbuilder && docker buildx create --name crossbuilder --platform linux/amd64,linux/arm/v7 && docker buildx ls && docker buildx use crossbuilder && docker buildx inspect --bootstrap'
-                                sh label: 'Build solarflow-control', script: 'docker buildx build --platform linux/amd64,linux/arm64,linux/arm/v7 -t ${DOCKER_REGISTRY}/solarflow-control:${TAG} -t ${DOCKER_REGISTRY}/solarflow-control:latest .'
+                                sh label: 'Build solarflow-control', script: 'docker buildx build --platform linux/amd64,linux/arm64,linux/arm/v7 --build-arg APP_VERSION=${TAG} --build-arg GIT_COMMIT=${GIT_COMMIT} --build-arg GIT_BRANCH=${BRANCH_NAME} --build-arg BUILD_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ) -t ${DOCKER_REGISTRY}/solarflow-control:${TAG} -t ${DOCKER_REGISTRY}/solarflow-control:latest .'
                             }
                             dir("${env.WORKSPACE}/imageexport") {
                                 sh label: 'Github CLI install', script: 'apk add github-cli'
@@ -67,13 +67,13 @@ pipeline {
                 container('docker-buildx') {
                     sh label: 'Docker Login', script: 'docker login -u ${DOCKERHUB_LOGIN_USR} -p ${DOCKERHUB_LOGIN_PSW}'
                     dir("${env.WORKSPACE}/src") {
-                        sh label: 'Push solarflow-control', script: 'docker buildx build --push --platform linux/amd64,linux/arm64,linux/arm/v7 -q -t ${DOCKER_REGISTRY}/solarflow-control:${BRANCH_NAME} .'
+                        sh label: 'Push solarflow-control', script: 'docker buildx build --push --platform linux/amd64,linux/arm64,linux/arm/v7 --build-arg APP_VERSION=${BRANCH_NAME}-${GIT_COMMIT.take(12)} --build-arg GIT_COMMIT=${GIT_COMMIT} --build-arg GIT_BRANCH=${BRANCH_NAME} --build-arg BUILD_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ) -q -t ${DOCKER_REGISTRY}/solarflow-control:${BRANCH_NAME} .'
                     }
                     script {
                         if (env.BRANCH_NAME == 'master') {
                             dir("${env.WORKSPACE}/src"){
-                                sh label: 'Push solarflow-control', script: 'docker buildx build --push --platform linux/amd64,linux/arm64,linux/arm/v7 -q -t ${DOCKER_REGISTRY}/solarflow-control:latest .'
-                                sh label: 'Push solarflow-control', script: 'docker buildx build --push --platform linux/amd64,linux/arm64,linux/arm/v7 -q -t ${DOCKER_REGISTRY}/solarflow-control:${TAG} .'
+                                sh label: 'Push solarflow-control', script: 'docker buildx build --push --platform linux/amd64,linux/arm64,linux/arm/v7 --build-arg APP_VERSION=latest --build-arg GIT_COMMIT=${GIT_COMMIT} --build-arg GIT_BRANCH=${BRANCH_NAME} --build-arg BUILD_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ) -q -t ${DOCKER_REGISTRY}/solarflow-control:latest .'
+                                sh label: 'Push solarflow-control', script: 'docker buildx build --push --platform linux/amd64,linux/arm64,linux/arm/v7 --build-arg APP_VERSION=${TAG} --build-arg GIT_COMMIT=${GIT_COMMIT} --build-arg GIT_BRANCH=${BRANCH_NAME} --build-arg BUILD_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ) -q -t ${DOCKER_REGISTRY}/solarflow-control:${TAG} .'
                             }
                         }
                     }
