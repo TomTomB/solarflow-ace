@@ -406,11 +406,14 @@ def limitHomeInput(client: mqtt_client):
     if direct_panel_power > 0:
         if demand < direct_panel_power:
             # Direct panels can cover the load. Usually we pull the inverter back to the
-            # actual demand to avoid feed-in, except when the hub battery is already full:
-            # in that case we prefer exporting excess hub solar over curtailing it.
+            # actual demand to avoid feed-in, except when the hub is already in bypass:
+            # then the battery is full and excess solar should be exported instead of curtailed.
             log.info(f'Direct connected panels ({direct_panel_power:.1f}W) can cover demand ({demand:.1f}W)')
-            battery_full = hub.getElectricLevel() >= hub.batteryHigh and not hub.chargeThrough
-            if battery_full and not hub.getBypass() and hub.getSolarInputPower() > 0:
+            if hub.getBypass():
+                direct_limit = getDirectPanelLimit(inv, hub, smt)
+                hub_limit = hub.getInverseMaxPower()
+                log.info(f'Bypass is active (battery full), keeping inverter open for export up to AC limit: direct_limit={direct_limit:.1f}W/channel, hub_limit={hub_limit:.1f}W')
+            elif hub.getElectricLevel() >= hub.batteryHigh and not hub.chargeThrough and hub.getSolarInputPower() > 0:
                 remaining_ac_headroom = max(0, inv.acLimit - direct_panel_power)
                 remaining_dc_headroom = remaining_ac_headroom / (inv.getEfficiency()/100) if inv.getEfficiency() > 0 else 0
                 hub_limit = hub.setOutputLimit(min(hub.getInverseMaxPower(), remaining_dc_headroom))
