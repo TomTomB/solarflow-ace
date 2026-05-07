@@ -1,6 +1,8 @@
 from datetime import datetime
 from datetime import timedelta
 from functools import reduce
+import platform
+import subprocess
 from threading import Timer
 import logging
 import sys
@@ -129,3 +131,22 @@ def str2bool (val):
         return False
     else:
         return False
+
+
+def ping_host(host: str, timeout_seconds: int = 1) -> bool:
+    if not host:
+        return False
+
+    system = platform.system().lower()
+    if system == 'windows':
+        command = ['ping', '-n', '1', '-w', str(timeout_seconds * 1000), host]
+    else:
+        command = ['ping', '-c', '1', '-W', str(timeout_seconds), host]
+
+    try:
+        result = subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+    except OSError as exc:
+        log.warning(f'Could not execute ping for host {host}: {exc}')
+        return False
+
+    return result.returncode == 0

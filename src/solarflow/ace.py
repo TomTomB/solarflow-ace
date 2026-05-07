@@ -7,7 +7,7 @@ import sys
 from jinja2 import DebugUndefined, Environment, FileSystemLoader
 from paho.mqtt import client as mqtt_client
 
-from utils import RepeatedTimer, TimewindowBuffer
+from utils import RepeatedTimer, TimewindowBuffer, ping_host
 
 red = "\x1b[31;20m"
 reset = "\x1b[0m"
@@ -17,12 +17,13 @@ log = logging.getLogger("")
 
 
 class Ace:
-    opts = {"product_id": str, "device_id": str}
+    opts = {"product_id": str, "device_id": str, "device_ip": str}
 
-    def __init__(self, client: mqtt_client, product_id: str, device_id: str):
+    def __init__(self, client: mqtt_client, product_id: str, device_id: str, device_ip: str | None = None):
         self.client = client
         self.productId = product_id
         self.deviceId = device_id
+        self.deviceIp = device_ip
         self.fwVersion = "unknown"
 
         self.lastSolarInputTS = None
@@ -38,9 +39,14 @@ class Ace:
         self.packInputPower = 0
         self.packState = -1
         self.acMode = -1
+        self.lastTelemetryTS = None
+        self.isAvailable = None
+        self.availabilityTopic = f'solarflow-hub/{self.deviceId}/availability'
 
         RepeatedTimer(600, self.pushHomeassistantConfig)
+        RepeatedTimer(10, self.refreshAvailability)
         self.pushHomeassistantConfig()
+        self.refreshAvailability()
         self.update()
         RepeatedTimer(60, self.update)
 
@@ -84,9 +90,33 @@ class Ace:
             cfg_type = hatemplate.name.split(".")[0]
             cfg_name = hatemplate.name.split(".")[1]
             hacfg = template.render(product_id=self.productId, device_id=self.deviceId, fw_version=self.fwVersion)
+            hacfg = self.injectAvailability(hacfg)
             self.client.publish(f'homeassistant/{cfg_type}/ace-{self.deviceId}-{cfg_name}/config', hacfg, retain=True)
 
         log.info(f"Published {len(hatemplates)} Homeassistant templates for Ace.")
+
+    def injectAvailability(self, config_payload: str) -> str:
+        config = json.loads(config_payload)
+        config.update({
+            'avty_t': self.availabilityTopic,
+            'pl_avail': 'online',
+            'pl_not_avail': 'offline',
+        })
+        return json.dumps(config)
+
+    def publishAvailability(self, available: bool):
+        payload = 'online' if available else 'offline'
+        if self.isAvailable is not None and self.isAvailable == available:
+            return
+
+        self.isAvailable = available
+        self.client.publish(self.availabilityTopic, payload, retain=True)
+        log.info(f'Published Ace availability {payload} on {self.availabilityTopic}')
+
+    def refreshAvailability(self):
+        telemetry_is_fresh = self.lastTelemetryTS is not None and (datetime.now() - self.lastTelemetryTS).total_seconds() <= 120
+        ping_is_reachable = ping_host(self.deviceIp) if self.deviceIp else False
+        self.publishAvailability(telemetry_is_fresh or ping_is_reachable)
 
     def handleMsg(self, msg):
         if self.productId in msg.topic:
@@ -95,8 +125,12 @@ class Ace:
             if "properties" in payload:
                 for prop, value in payload["properties"].items():
                     self.client.publish(f'solarflow-hub/{device_id}/telemetry/{prop}', value)
+                self.lastTelemetryTS = datetime.now()
+                self.publishAvailability(True)
 
         if msg.topic.startswith(f'solarflow-hub/{self.deviceId}') and msg.payload:
+            self.lastTelemetryTS = datetime.now()
+            self.publishAvailability(True)
             last_known = self.lastSolarInputTS or self.startTS
             if (datetime.now() - last_known).total_seconds() > 120:
                 self.updSolarInput(0)
