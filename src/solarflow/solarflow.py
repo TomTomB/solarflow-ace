@@ -15,21 +15,13 @@ FORMAT = '%(asctime)s:%(levelname)s: %(message)s'
 logging.basicConfig(stream=sys.stdout, level="INFO", format=FORMAT)
 log = logging.getLogger("")
 
-HUB2000 = "A8yh63"
-AC_MODE_OUTPUT = 2
-
-
 class Solarflow:
     opts = {"product_id": str, "device_id": str}
 
-    def default_calllback(self):
-        log.info("default callback")
-
-    def __init__(self, client: mqtt_client, product_id: str, device_id: str, callback=default_calllback):
+    def __init__(self, client: mqtt_client, product_id: str, device_id: str):
         self.client = client
         self.productId = product_id
         self.deviceId = device_id
-        self.property_topic = f'iot/{self.productId}/{self.deviceId}/properties/write'
 
         self.fwVersion = "unknown"
         self.solarInputValues = TimewindowBuffer(minutes=1)
@@ -92,17 +84,6 @@ class Solarflow:
             self.client.subscribe(topic)
             log.info(f'Hub subscribing: {topic}')
 
-    def ready(self):
-        return self.electricLevel > -1 and self.solarInputPower > -1
-
-    def timesync(self, ts):
-        payload = {
-            "zoneOffset": "+00:00",
-            "messageId": 123,
-            "timestamp": ts,
-        }
-        self.client.publish(f'iot/{self.productId}/{self.deviceId}/time-sync/reply', json.dumps(payload))
-
     def pushHomeassistantConfig(self):
         log.info("Publishing Homeassistant templates...")
         hatemplates = [file_path for file_path in pathlib.Path().glob("homeassistant/hub/*.json")]
@@ -135,7 +116,7 @@ class Solarflow:
 
     def updSolarInput(self, value: int):
         self.solarInputValues.add(value)
-        self.solarInputPower = self.getSolarInputPower()
+        self.solarInputPower = self.solarInputValues.last()
         self.lastSolarInputTS = datetime.now()
 
     def updElectricLevel(self, value: int):
@@ -235,76 +216,3 @@ class Solarflow:
                     if "control" not in msg.topic:
                         log.warning(f'Ignoring solarflow-hub metric: {metric}')
 
-    def setOutputLimit(self, limit: int):
-        limit = max(0, int(limit))
-        payload = {"properties": {"outputLimit": limit}}
-        self.client.publish(self.property_topic, json.dumps(payload))
-        log.info(f'Setting solarflow output limit to {limit}W')
-        return limit
-
-    def setMasterSwitch(self, state: bool):
-        payload = {"properties": {"masterSwitch": 1 if state else 0}}
-        self.client.publish(self.property_topic, json.dumps(payload))
-        log.info(f'Turning hub master switch {"ON" if state else "OFF"}')
-
-    def setBuzzer(self, state: bool):
-        payload = {"properties": {"buzzerSwitch": 1 if state else 0}}
-        self.client.publish(self.property_topic, json.dumps(payload))
-        log.info(f'Turning hub buzzer {"ON" if state else "OFF"}')
-
-    def setACMode(self):
-        payload = {"properties": {"acMode": AC_MODE_OUTPUT}}
-        self.client.publish(self.property_topic, json.dumps(payload))
-        log.info('Ensuring hub AC mode is set to output')
-
-    def setAutorecover(self, state: bool):
-        payload = {"properties": {"autoRecover": 1 if state else 0}}
-        self.client.publish(self.property_topic, json.dumps(payload))
-        log.info(f'Turning hub bypass autorecover {"ON" if state else "OFF"}')
-
-    def setBypass(self, state: bool):
-        payload = {"properties": {"passMode": 2 if state else 1}}
-        self.client.publish(self.property_topic, json.dumps(payload))
-        log.info(f'Turning hub bypass {"ON" if state else "OFF"}')
-
-    def getOutputHomePower(self):
-        return self.outputHomePower
-
-    def getDischargePower(self):
-        return self.packInputPower
-
-    def getSolarInputPower(self):
-        return self.solarInputValues.last()
-
-    def getElectricLevel(self):
-        return self.electricLevel
-
-    def getInverseMaxPower(self):
-        return self.inverseMaxPower
-
-    def getLimit(self):
-        return self.outputLimit
-
-    def getBypass(self):
-        return self.bypass
-
-    def setBatteryHighSoC(self, level: int) -> int:
-        level = int(level)
-        payload = {"properties": {"socSet": level * 10}}
-        self.client.publish(self.property_topic, json.dumps(payload))
-        log.info(f'Setting maximum charge level to {level}%')
-        return level
-
-    def setBatteryLowSoC(self, level: int) -> int:
-        level = int(level)
-        payload = {"properties": {"minSoc": level * 10}}
-        self.client.publish(self.property_topic, json.dumps(payload))
-        log.info(f'Setting minimum charge level to {level}%')
-        return level
-
-    def setInverseMaxPower(self, value: int) -> int:
-        value = int(value)
-        payload = {"properties": {"inverseMaxPower": value}}
-        self.client.publish(self.property_topic, json.dumps(payload))
-        log.info(f'Setting inverse max power to {value}W')
-        return value

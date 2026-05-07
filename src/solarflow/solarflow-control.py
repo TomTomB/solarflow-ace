@@ -50,10 +50,6 @@ def load_config():
 config = load_config()
 
 
-def noop_callback(*args, **kwargs):
-    return False
-
-
 def log_build_info():
     version = os.environ.get('APP_VERSION', 'dev')
     commit = os.environ.get('GIT_COMMIT', 'unknown')
@@ -139,13 +135,13 @@ def run():
     ace_opts = getOpts(ace.Ace)
 
     client = connect_mqtt()
-    hub = solarflow.Solarflow(client=client, callback=noop_callback, **hub_opts)
-    aceUnit = ace.Ace(client=client, callback=noop_callback, **ace_opts)
+    hub = solarflow.Solarflow(client=client, **hub_opts)
+    aceUnit = ace.Ace(client=client, **ace_opts)
 
     client.user_data_set({"hub": hub, "ace": aceUnit})
 
     client.on_message = on_message
-    log.info('Transport mode active: only Solarflow Hub 2000 and ACE 1500 telemetry plus direct device writes are enabled.')
+    log.info('Transport mode active: only Solarflow Hub 2000 and ACE 1500 polling, telemetry bridging and Home Assistant discovery are enabled.')
 
     hub.subscribe()
     aceUnit.subscribe()

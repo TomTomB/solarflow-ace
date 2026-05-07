@@ -19,14 +19,10 @@ log = logging.getLogger("")
 class Ace:
     opts = {"product_id": str, "device_id": str}
 
-    def default_calllback(self):
-        log.info("default callback")
-
-    def __init__(self, client: mqtt_client, product_id: str, device_id: str, callback=default_calllback):
+    def __init__(self, client: mqtt_client, product_id: str, device_id: str):
         self.client = client
         self.productId = product_id
         self.deviceId = device_id
-        self.property_topic = f'iot/{self.productId}/{self.deviceId}/properties/write'
         self.fwVersion = "unknown"
 
         self.lastSolarInputTS = None
@@ -136,12 +132,6 @@ class Ace:
                     if "control" not in msg.topic:
                         log.warning(f'Ignoring solarflow-hub metric: {metric}')
 
-    def isOutputActive(self) -> bool:
-        return self.acSwitch or self.dcSwitch or self.acOutputPower > 5 or self.dcOutputPower > 5
-
-    def getSolarInputPower(self):
-        return self.solarInputValues.last()
-
     def updMasterFirmwareVersion(self, value: int):
         major = (value & 0xF000) >> 12
         minor = (value & 0x0F00) >> 8
@@ -150,20 +140,5 @@ class Ace:
 
     def updSolarInput(self, value: int):
         self.solarInputValues.add(value)
-        self.solarInputPower = self.getSolarInputPower()
+        self.solarInputPower = self.solarInputValues.last()
         self.lastSolarInputTS = datetime.now()
-
-    def setAcSwitch(self, state: bool):
-        payload = {"properties": {"acSwitch": 1 if state else 0}}
-        self.client.publish(self.property_topic, json.dumps(payload))
-        log.info(f'Turning Ace AC switch {"ON" if state else "OFF"}')
-
-    def setMasterSwitch(self, state: bool):
-        payload = {"properties": {"masterSwitch": 1 if state else 0}}
-        self.client.publish(self.property_topic, json.dumps(payload))
-        log.info(f'Turning Ace master switch {"ON" if state else "OFF"}')
-
-    def setBuzzer(self, state: bool):
-        payload = {"properties": {"buzzerSwitch": 1 if state else 0}}
-        self.client.publish(self.property_topic, json.dumps(payload))
-        log.info(f'Turning Ace buzzer {"ON" if state else "OFF"}')
