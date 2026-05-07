@@ -23,6 +23,10 @@ env/
 .DS_Store
 Thumbs.db
 
+internal-docs/
+
+
 # Config with secrets
 src/config.ini
+src/config.local.ini
 examples/local_mqtt_with_control/config.ini

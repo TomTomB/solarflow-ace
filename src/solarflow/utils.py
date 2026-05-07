@@ -111,7 +111,7 @@ class TimewindowBuffer:
         self.values = []
         self.aggregated_values = [self.aggregated_values[-1]] if self.aggregated_values else []
 
-    # used to prepopulate smartmeter readings with fixed values for a certain amount of seconds
+    # used to prepopulate buffered readings with fixed values for a certain amount of seconds
     def populate(self, duration, value):
         now = datetime.now()
         self.values = []
