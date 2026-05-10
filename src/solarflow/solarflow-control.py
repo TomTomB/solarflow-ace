@@ -9,6 +9,7 @@ from pathlib import Path
 from paho.mqtt import client as mqtt_client
 import solarflow
 import ace
+from utils import str2bool
 
 FORMAT = '%(asctime)s:%(levelname)s: %(message)s'
 logging.basicConfig(stream=sys.stdout, level="INFO", format=FORMAT)
@@ -70,10 +71,59 @@ mqtt_user = config.get('mqtt', 'mqtt_user', fallback=None) or os.environ.get('MQ
 mqtt_pwd = config.get('mqtt', 'mqtt_pwd', fallback=None) or os.environ.get('MQTT_PWD',None)
 mqtt_host = config.get('mqtt', 'mqtt_host', fallback=None) or os.environ.get('MQTT_HOST',None)
 mqtt_port = config.getint('mqtt', 'mqtt_port', fallback=None) or int(os.environ.get('MQTT_PORT', 1883))
+
+TRANSPORT_TELEMETRY_POLLING_CONTROL_TOPIC = 'solarflow-transport/control/telemetryPolling'
+TRANSPORT_TELEMETRY_POLLING_STATE_TOPIC = 'solarflow-transport/telemetry/telemetryPolling'
+
+
+def publish_transport_polling_state(client: mqtt_client, enabled: bool):
+    client.publish(
+        TRANSPORT_TELEMETRY_POLLING_STATE_TOPIC,
+        'ON' if enabled else 'OFF',
+        retain=True,
+    )
+
+
+def apply_transport_polling(userdata: dict, enabled: bool):
+    hub = userdata['hub']
+    ace_unit = userdata['ace']
+    hub.setTelemetryPolling(enabled)
+    ace_unit.setTelemetryPolling(enabled)
+    userdata['transportTelemetryPollingEnabled'] = enabled
+
+
+def fetch_initial_transport_polling_state(client: mqtt_client) -> bool:
+    initial_state = {'enabled': True}
+
+    def capture_initial_control(_client, _userdata, msg):
+        if msg.topic == TRANSPORT_TELEMETRY_POLLING_CONTROL_TOPIC and msg.payload:
+            initial_state['enabled'] = str2bool(msg.payload.decode())
+
+    original_on_message = client.on_message
+    client.on_message = capture_initial_control
+    client.subscribe(TRANSPORT_TELEMETRY_POLLING_CONTROL_TOPIC)
+
+    deadline = time.time() + 1.0
+    while time.time() < deadline:
+        result = client.loop(timeout=0.2)
+        if result != mqtt_client.MQTT_ERR_SUCCESS:
+            break
+
+    client.on_message = original_on_message
+    return initial_state['enabled']
     
 
 def on_message(client, userdata, msg):
     '''Delegate incoming MQTT messages to the Solarflow hub and ACE transport adapters only.'''
+    if msg.topic == TRANSPORT_TELEMETRY_POLLING_CONTROL_TOPIC:
+        enabled = str2bool(msg.payload.decode()) if msg.payload else True
+        previous = userdata.get('transportTelemetryPollingEnabled')
+        apply_transport_polling(userdata, enabled)
+        publish_transport_polling_state(client, enabled)
+        if previous != enabled:
+            log.info(f'Transport telemetry polling control received: {"ON" if enabled else "OFF"}')
+        return
+
     hub = userdata["hub"]
     hub.handleMsg(msg)
     ace = userdata["ace"]
@@ -131,17 +181,27 @@ def run():
         log.error(f'Unsupported Solarflow product_id: {sf_product_id}. This transport layer only supports Hub 2000 (A8yh63).')
         sys.exit(1)
 
+    client = connect_mqtt()
+    initial_transport_polling_enabled = fetch_initial_transport_polling_state(client)
+
     hub_opts = getOpts(solarflow.Solarflow)
     ace_opts = getOpts(ace.Ace)
+    hub = solarflow.Solarflow(client=client, telemetry_polling_enabled=initial_transport_polling_enabled, **hub_opts)
+    aceUnit = ace.Ace(client=client, telemetry_polling_enabled=initial_transport_polling_enabled, **ace_opts)
 
-    client = connect_mqtt()
-    hub = solarflow.Solarflow(client=client, **hub_opts)
-    aceUnit = ace.Ace(client=client, **ace_opts)
-
-    client.user_data_set({"hub": hub, "ace": aceUnit})
+    client.user_data_set({
+        "hub": hub,
+        "ace": aceUnit,
+        "transportTelemetryPollingEnabled": initial_transport_polling_enabled,
+    })
 
     client.on_message = on_message
-    log.info('Transport mode active: only Solarflow Hub 2000 and ACE 1500 polling, telemetry bridging and Home Assistant discovery are enabled.')
+    client.subscribe(TRANSPORT_TELEMETRY_POLLING_CONTROL_TOPIC)
+    publish_transport_polling_state(client, initial_transport_polling_enabled)
+    log.info(
+        'Transport mode active: only Solarflow Hub 2000 and ACE 1500 polling, telemetry bridging and Home Assistant discovery are enabled. '
+        f'Telemetry polling starts {"enabled" if initial_transport_polling_enabled else "paused"}.'
+    )
 
     hub.subscribe()
     aceUnit.subscribe()

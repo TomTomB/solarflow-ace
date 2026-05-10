@@ -24,6 +24,7 @@ env/
 Thumbs.db
 
 internal-docs/
+ha/
 
 
 # Config with secrets

@@ -19,7 +19,7 @@ log = logging.getLogger("")
 class Ace:
     opts = {"product_id": str, "device_id": str, "device_ip": str}
 
-    def __init__(self, client: mqtt_client, product_id: str, device_id: str, device_ip: str | None = None):
+    def __init__(self, client: mqtt_client, product_id: str, device_id: str, device_ip: str | None = None, telemetry_polling_enabled: bool = True):
         self.client = client
         self.productId = product_id
         self.deviceId = device_id
@@ -41,6 +41,7 @@ class Ace:
         self.acMode = -1
         self.lastTelemetryTS = None
         self.isAvailable = None
+        self.telemetryPollingEnabled = telemetry_polling_enabled
         self.availabilityTopic = f'solarflow-hub/{self.deviceId}/availability'
 
         RepeatedTimer(600, self.pushHomeassistantConfig)
@@ -57,6 +58,8 @@ class Ace:
                         D:{self.deviceId}{reset}'.split())
 
     def update(self):
+        if not self.telemetryPollingEnabled:
+            return
         log.info(f'Triggering Ace telemetry update: iot/{self.productId}/{self.deviceId}/properties/read')
         self.client.publish(f'iot/{self.productId}/{self.deviceId}/properties/read', '{"properties": ["getAll"]}')
 
@@ -117,6 +120,16 @@ class Ace:
         telemetry_is_fresh = self.lastTelemetryTS is not None and (datetime.now() - self.lastTelemetryTS).total_seconds() <= 120
         ping_is_reachable = ping_host(self.deviceIp) if self.deviceIp else False
         self.publishAvailability(telemetry_is_fresh or ping_is_reachable)
+
+    def setTelemetryPolling(self, state: bool):
+        if self.telemetryPollingEnabled == state:
+            return
+
+        self.telemetryPollingEnabled = state
+        log.info(f'Ace telemetry polling {"enabled" if state else "paused"}')
+
+        if state:
+            self.update()
 
     def handleMsg(self, msg):
         if self.productId in msg.topic:
