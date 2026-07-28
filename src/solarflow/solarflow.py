@@ -7,7 +7,10 @@ import sys
 from jinja2 import DebugUndefined, Environment, FileSystemLoader
 from paho.mqtt import client as mqtt_client
 
-from utils import RepeatedTimer, TimewindowBuffer, ping_host
+from utils import (AVAILABILITY_PAYLOAD_OFFLINE, AVAILABILITY_PAYLOAD_ONLINE,
+                   BRIDGE_AVAILABILITY_TOPIC, SELF_ECHO_WINDOW_SECONDS,
+                   TELEMETRY_EXPIRE_AFTER_SECONDS, RepeatedTimer, TimewindowBuffer,
+                   ping_host)
 
 red = "\x1b[31;20m"
 reset = "\x1b[0m"
@@ -41,6 +44,7 @@ class Solarflow:
         self.batteryHigh = -1
         self.lastSolarInputTS = None
         self.lastTelemetryTS = None
+        self.lastSelfPublishTS = None
         self.isAvailable = None
         self.telemetryPollingEnabled = telemetry_polling_enabled
         self.availabilityTopic = f'solarflow-hub/{self.deviceId}/availability'
@@ -113,7 +117,7 @@ class Solarflow:
                         battery_serial=serial,
                         battery_index=index + 1,
                     )
-                    hacfg = self.injectAvailability(hacfg)
+                    hacfg = self.injectAvailability(hacfg, cfg_type)
                     self.client.publish(
                         f'homeassistant/{cfg_type}/solarflow-hub-{self.deviceId}-{serial}-{cfg_name}/config',
                         hacfg,
@@ -121,17 +125,39 @@ class Solarflow:
                     )
             else:
                 hacfg = template.render(product_id=self.productId, device_id=self.deviceId, fw_version=self.fwVersion)
-                hacfg = self.injectAvailability(hacfg)
+                hacfg = self.injectAvailability(hacfg, cfg_type)
                 self.client.publish(f'homeassistant/{cfg_type}/solarflow-hub-{self.deviceId}-{cfg_name}/config', hacfg, retain=True)
         log.info(f"Published {len(hatemplates)} Homeassistant templates for Hub.")
 
-    def injectAvailability(self, config_payload: str) -> str:
+    def injectAvailability(self, config_payload: str, cfg_type: str | None = None) -> str:
         config = json.loads(config_payload)
+
+        # Two availability sources, both of which must be online: the device (fed by its own
+        # telemetry) and the bridge process (fed by the last will). Either one going away has
+        # to mark the entity unavailable, hence availability_mode 'all'.
+        for legacy_key in ('avty_t', 'avty', 'pl_avail', 'pl_not_avail'):
+            config.pop(legacy_key, None)
         config.update({
-            'avty_t': self.availabilityTopic,
-            'pl_avail': 'online',
-            'pl_not_avail': 'offline',
+            'availability': [
+                {
+                    'topic': self.availabilityTopic,
+                    'payload_available': AVAILABILITY_PAYLOAD_ONLINE,
+                    'payload_not_available': AVAILABILITY_PAYLOAD_OFFLINE,
+                },
+                {
+                    'topic': BRIDGE_AVAILABILITY_TOPIC,
+                    'payload_available': AVAILABILITY_PAYLOAD_ONLINE,
+                    'payload_not_available': AVAILABILITY_PAYLOAD_OFFLINE,
+                },
+            ],
+            'availability_mode': 'all',
         })
+
+        # Only sensors support expire_after. Controls must stay writable even when the
+        # device is quiet, so they deliberately do not get it.
+        if cfg_type in ('sensor', 'binary_sensor'):
+            config['expire_after'] = TELEMETRY_EXPIRE_AFTER_SECONDS
+
         return json.dumps(config)
 
     def publishAvailability(self, available: bool):
@@ -207,13 +233,26 @@ class Solarflow:
     def updByPassMode(self, value: int):
         self.bypass_mode = value
 
+    def isOwnDeviceReport(self, topic: str) -> bool:
+        '''True only for a report of THIS device. on_message hands every message to every
+        adapter, and a plain substring test on the product id let one device's traffic keep
+        the other one's availability alive.'''
+        parts = topic.split('/')
+        return any(parts[i] == self.productId and parts[i + 1] == self.deviceId
+                   for i in range(len(parts) - 1))
+
+    def isSelfEcho(self) -> bool:
+        return (self.lastSelfPublishTS is not None
+                and (datetime.now() - self.lastSelfPublishTS).total_seconds()
+                    <= SELF_ECHO_WINDOW_SECONDS)
+
     def handleMsg(self, msg):
-        if self.productId in msg.topic:
-            device_id = msg.topic.split('/')[2]
+        if self.isOwnDeviceReport(msg.topic):
             payload = json.loads(msg.payload.decode())
             if "properties" in payload:
                 for prop, value in payload["properties"].items():
-                    self.client.publish(f'solarflow-hub/{device_id}/telemetry/{prop}', value)
+                    self.client.publish(f'solarflow-hub/{self.deviceId}/telemetry/{prop}', value)
+                self.lastSelfPublishTS = datetime.now()
                 self.lastTelemetryTS = datetime.now()
                 self.publishAvailability(True)
 
@@ -221,13 +260,15 @@ class Solarflow:
                 for pack in payload["packData"]:
                     serial = pack.pop('sn')
                     for prop, value in pack.items():
-                        self.client.publish(f'solarflow-hub/{device_id}/telemetry/batteries/{serial}/{prop}', value)
+                        self.client.publish(f'solarflow-hub/{self.deviceId}/telemetry/batteries/{serial}/{prop}', value)
+                self.lastSelfPublishTS = datetime.now()
                 self.lastTelemetryTS = datetime.now()
                 self.publishAvailability(True)
 
         if msg.topic.startswith(f'solarflow-hub/{self.deviceId}') and msg.payload:
-            self.lastTelemetryTS = datetime.now()
-            self.publishAvailability(True)
+            if not self.isSelfEcho():
+                self.lastTelemetryTS = datetime.now()
+                self.publishAvailability(True)
             if self.lastSolarInputTS and (datetime.now() - self.lastSolarInputTS).total_seconds() > 120:
                 self.updSolarInput(0)
 

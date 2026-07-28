@@ -11,6 +11,26 @@ FORMAT = '%(asctime)s:%(levelname)s: %(message)s'
 logging.basicConfig(stream=sys.stdout, level="INFO", format=FORMAT)
 log = logging.getLogger("")
 
+# Availability topic of the bridge process itself, separate from the per-device topics.
+# It is published as 'online' on connect and registered as the MQTT last will, so that a
+# bridge that crashes or is killed marks every entity unavailable. Without it the retained
+# 'online' of the per-device topics survives the process and Home Assistant keeps serving
+# the last received value forever, which is indistinguishable from a live measurement.
+BRIDGE_AVAILABILITY_TOPIC = 'solarflow-hub/bridge/availability'
+AVAILABILITY_PAYLOAD_ONLINE = 'online'
+AVAILABILITY_PAYLOAD_OFFLINE = 'offline'
+
+# A device report is republished by this process onto solarflow-hub/<device>/telemetry/*,
+# and the broker echoes those publishes straight back to us because we subscribe to them.
+# Messages arriving within this window after our own publish are therefore not evidence
+# that the device is alive - they are our own voice.
+SELF_ECHO_WINDOW_SECONDS = 2
+
+# Backstop written into the Home Assistant discovery configs of all telemetry sensors: a
+# sensor that receives nothing for this long reports itself unavailable, independent of any
+# availability topic and independent of this process still running.
+TELEMETRY_EXPIRE_AFTER_SECONDS = 600
+
 class RepeatedTimer:
     def __init__(self, interval, function, *args, **kwargs):
         self._timer     = None

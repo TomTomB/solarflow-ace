@@ -9,7 +9,8 @@ from pathlib import Path
 from paho.mqtt import client as mqtt_client
 import solarflow
 import ace
-from utils import str2bool
+from utils import (AVAILABILITY_PAYLOAD_OFFLINE, AVAILABILITY_PAYLOAD_ONLINE,
+                   BRIDGE_AVAILABILITY_TOPIC, str2bool)
 
 FORMAT = '%(asctime)s:%(levelname)s: %(message)s'
 logging.basicConfig(stream=sys.stdout, level="INFO", format=FORMAT)
@@ -133,6 +134,9 @@ def on_message(client, userdata, msg):
 def on_connect(client, userdata, flags, rc):
     if rc == 0:
         log.info("Connected to MQTT Broker!")
+        # Counterpart to the last will registered in connect_mqtt(). Retained, so Home
+        # Assistant sees it no matter when it subscribes.
+        client.publish(BRIDGE_AVAILABILITY_TOPIC, AVAILABILITY_PAYLOAD_ONLINE, retain=True)
     else:
         log.error("Failed to connect, return code %d\n", rc)
 
@@ -149,6 +153,13 @@ def connect_mqtt() -> mqtt_client:
         client.username_pw_set(mqtt_user, mqtt_pwd)
     client.on_connect = on_connect
     client.on_disconnect = on_disconnect
+
+    # Last will: if this process dies without saying goodbye, the broker publishes 'offline'
+    # for us. Every device entity carries this topic as a second availability source, so a
+    # dead bridge makes all of them unavailable instead of leaving stale values that look
+    # like valid measurements. paho allows exactly one will per client, which is why this is
+    # a bridge-wide topic and not one per device.
+    client.will_set(BRIDGE_AVAILABILITY_TOPIC, AVAILABILITY_PAYLOAD_OFFLINE, retain=True)
 
     delay = 5
     while True:
