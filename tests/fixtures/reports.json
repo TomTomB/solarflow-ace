@@ -1,0 +1,13 @@
+{
+  "hub": {
+    "product_id": "A8yh63",
+    "device_id": "k8k1Cx54",
+    "report": {"properties": {"electricLevel": 57, "outputHomePower": 120, "outputLimit": 120, "solarInputPower": 340, "outputPackPower": 220, "packInputPower": 0, "solarPower1": 170, "solarPower2": 170, "pass": 0, "passMode": 0, "socSet": 1000, "minSoc": 100, "inverseMaxPower": 800, "masterSoftVersion": 12312, "packState": 1, "remainOutTime": 59940, "wifiState": 1, "acMode": 1, "inputLimit": 0, "buzzerSwitch": 0, "autoRecover": 1, "packNum": 1, "hubState": 0},
+               "packData": [{"sn": "CO4HMEFMF701211", "socLevel": 57, "maxTemp": 2951, "totalVol": 5120, "soh": 1000, "maxVol": 321, "minVol": 319}]}
+  },
+  "ace": {
+    "product_id": "8bM93H",
+    "device_id": "0d9w2UDT",
+    "report": {"properties": {"acSwitch": 1, "dcSwitch": 0, "gridInputPower": 0, "acOutputPower": 0, "dcOutputPower": 0, "outputPackPower": 0, "packInputPower": 0, "packState": 0, "acMode": 2, "solarInputPower": 0, "solarPower1": 0, "masterSoftVersion": 4105, "acDelay": 10, "buzzerSwitch": 0, "masterSwitch": 1}}
+  }
+}

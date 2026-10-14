@@ -1,0 +1,275 @@
+{
+ "discovery": {
+  "homeassistant/binary_sensor/solarflow-hub-k8k1Cx54-pass/config": "{\"name\": \"Bypass State\", \"stat_t\": \"~pass\", \"pl_on\": \"1\", \"pl_off\": \"0\", \"uniq_id\": \"k8k1Cx54-pass\", \"dev\": {\"identifiers\": [\"k8k1Cx54\"], \"manufacturer\": \"Zendure\", \"model\": \"Solarflow\", \"name\": \"Solarflow Hub\", \"sw_version\": \"3.0.24\"}, \"~\": \"solarflow-hub/k8k1Cx54/telemetry/\", \"availability\": [{\"topic\": \"solarflow-hub/k8k1Cx54/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}, {\"topic\": \"solarflow-hub/bridge/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}], \"availability_mode\": \"all\", \"expire_after\": 600}",
+  "homeassistant/binary_sensor/solarflow-hub-k8k1Cx54-wifiState/config": "{\"name\": \"Wifi State\", \"stat_t\": \"~wifiState\", \"pl_on\": \"1\", \"pl_off\": \"0\", \"uniq_id\": \"k8k1Cx54-wifiState\", \"dev_cla\": \"connectivity\", \"dev\": {\"identifiers\": [\"k8k1Cx54\"], \"manufacturer\": \"Zendure\", \"model\": \"Solarflow\", \"name\": \"Solarflow Hub\", \"sw_version\": \"3.0.24\"}, \"~\": \"solarflow-hub/k8k1Cx54/telemetry/\", \"availability\": [{\"topic\": \"solarflow-hub/k8k1Cx54/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}, {\"topic\": \"solarflow-hub/bridge/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}], \"availability_mode\": \"all\", \"expire_after\": 600}",
+  "homeassistant/number/ace-0d9w2UDT-acDelay/config": "{\"name\": \"AC Auto Off Delay\", \"cmd_t\": \"iot/8bM93H/0d9w2UDT/properties/write\", \"cmd_tpl\": \"{\\\"properties\\\": {\\\"acDelay\\\": {{ value }} }}\", \"stat_t\": \"~acDelay\", \"value_template\": \"{{ value | round(0) | int }} \", \"uniq_id\": \"0d9w2UDT-acDelay\", \"unit_of_meas\": \"s\", \"max\": 120, \"min\": 1, \"step\": 1, \"mode\": \"box\", \"dev\": {\"identifiers\": [\"0d9w2UDT\"], \"manufacturer\": \"Zendure\", \"model\": \"Ace\", \"name\": \"Ace 1500\", \"sw_version\": \"1.0.9\"}, \"~\": \"solarflow-hub/0d9w2UDT/telemetry/\", \"availability\": [{\"topic\": \"solarflow-hub/0d9w2UDT/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}, {\"topic\": \"solarflow-hub/bridge/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}], \"availability_mode\": \"all\"}",
+  "homeassistant/number/solarflow-hub-k8k1Cx54-inputLimit/config": "{\"name\": \"Charge via Grid Input Limit\", \"cmd_t\": \"iot/A8yh63/k8k1Cx54/properties/write\", \"cmd_tpl\": \"{\\\"properties\\\": {\\\"inputLimit\\\": {{ value }} }}\", \"stat_t\": \"~inputLimit\", \"value_template\": \"{{ value | round(0) | int }} \", \"uniq_id\": \"k8k1Cx54-inputLimit\", \"unit_of_meas\": \"W\", \"max\": 900, \"min\": 0, \"step\": 1, \"mode\": \"box\", \"dev\": {\"identifiers\": [\"k8k1Cx54\"], \"manufacturer\": \"Zendure\", \"model\": \"Solarflow\", \"name\": \"Solarflow Hub\", \"sw_version\": \"3.0.24\"}, \"~\": \"solarflow-hub/k8k1Cx54/telemetry/\", \"availability\": [{\"topic\": \"solarflow-hub/k8k1Cx54/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}, {\"topic\": \"solarflow-hub/bridge/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}], \"availability_mode\": \"all\"}",
+  "homeassistant/number/solarflow-hub-k8k1Cx54-inverseMaxPower/config": "{\"name\": \"Inverter Limit\", \"cmd_t\": \"iot/A8yh63/k8k1Cx54/properties/write\", \"cmd_tpl\": \"{\\\"properties\\\": {\\\"inverseMaxPower\\\": {{ value }} }}\", \"stat_t\": \"~inverseMaxPower\", \"uniq_id\": \"k8k1Cx54-inverseMaxPower\", \"unit_of_meas\": \"W\", \"max\": 2400, \"min\": 0, \"step\": 1, \"mode\": \"box\", \"dev\": {\"identifiers\": [\"k8k1Cx54\"], \"manufacturer\": \"Zendure\", \"model\": \"Solarflow\", \"name\": \"Solarflow Hub\", \"sw_version\": \"3.0.24\"}, \"~\": \"solarflow-hub/k8k1Cx54/telemetry/\", \"availability\": [{\"topic\": \"solarflow-hub/k8k1Cx54/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}, {\"topic\": \"solarflow-hub/bridge/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}], \"availability_mode\": \"all\"}",
+  "homeassistant/number/solarflow-hub-k8k1Cx54-minSoc/config": "{\"name\": \"Discharge Limit\", \"cmd_t\": \"iot/A8yh63/k8k1Cx54/properties/write\", \"cmd_tpl\": \"{\\\"properties\\\": {\\\"minSoc\\\": {{ value | multiply(10) }} }}\", \"stat_t\": \"~minSoc\", \"value_template\": \"{{ value | multiply(0.1) | round(0) | int }} \", \"uniq_id\": \"k8k1Cx54-minSoc\", \"unit_of_meas\": \"%\", \"max\": 100, \"min\": 0, \"step\": 1, \"mode\": \"box\", \"dev\": {\"identifiers\": [\"k8k1Cx54\"], \"manufacturer\": \"Zendure\", \"model\": \"Solarflow\", \"name\": \"Solarflow Hub\", \"sw_version\": \"3.0.24\"}, \"~\": \"solarflow-hub/k8k1Cx54/telemetry/\", \"availability\": [{\"topic\": \"solarflow-hub/k8k1Cx54/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}, {\"topic\": \"solarflow-hub/bridge/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}], \"availability_mode\": \"all\"}",
+  "homeassistant/number/solarflow-hub-k8k1Cx54-outputLimit/config": "{\"name\": \"Output Power Limit\", \"cmd_t\": \"iot/A8yh63/k8k1Cx54/properties/write\", \"cmd_tpl\": \"{\\\"properties\\\": {\\\"outputLimit\\\": {{ value }} }}\", \"stat_t\": \"~outputLimit\", \"uniq_id\": \"k8k1Cx54-outputLimit\", \"dev_cla\": \"power\", \"unit_of_meas\": \"W\", \"max\": 1200, \"min\": 0, \"step\": 1, \"dev\": {\"identifiers\": [\"k8k1Cx54\"], \"manufacturer\": \"Zendure\", \"model\": \"Solarflow\", \"name\": \"Solarflow Hub\", \"sw_version\": \"3.0.24\"}, \"~\": \"solarflow-hub/k8k1Cx54/telemetry/\", \"availability\": [{\"topic\": \"solarflow-hub/k8k1Cx54/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}, {\"topic\": \"solarflow-hub/bridge/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}], \"availability_mode\": \"all\"}",
+  "homeassistant/number/solarflow-hub-k8k1Cx54-socSet/config": "{\"name\": \"Charge Limit\", \"cmd_t\": \"iot/A8yh63/k8k1Cx54/properties/write\", \"cmd_tpl\": \"{\\\"properties\\\": {\\\"socSet\\\": {{ value | multiply(10) }} }}\", \"stat_t\": \"~socSet\", \"value_template\": \"{{ value | multiply(0.1) | round(0) | int }} \", \"uniq_id\": \"k8k1Cx54-socSet\", \"unit_of_meas\": \"%\", \"max\": 100, \"min\": 0, \"step\": 1, \"mode\": \"box\", \"dev\": {\"identifiers\": [\"k8k1Cx54\"], \"manufacturer\": \"Zendure\", \"model\": \"Solarflow\", \"name\": \"Solarflow Hub\", \"sw_version\": \"3.0.24\"}, \"~\": \"solarflow-hub/k8k1Cx54/telemetry/\", \"availability\": [{\"topic\": \"solarflow-hub/k8k1Cx54/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}, {\"topic\": \"solarflow-hub/bridge/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}], \"availability_mode\": \"all\"}",
+  "homeassistant/select/solarflow-hub-k8k1Cx54-passMode/config": "{\"name\": \"Bypass Mode\", \"cmd_t\": \"iot/A8yh63/k8k1Cx54/properties/write\", \"cmd_tpl\": \"{\\\"properties\\\": {\\\"passMode\\\": {{ 0 if value=='Auto' else (1 if value=='Off' else (2 if value=='On')) }} }}\", \"stat_t\": \"~passMode\", \"uniq_id\": \"k8k1Cx54-passMode\", \"val_tpl\": \"{{ 'Auto' if value=='0' else ('Off' if value=='1' else ('On' if value=='2' else 'Unknown')) }}\", \"ops\": [\"Auto\", \"Off\", \"On\", \"Unknown\"], \"dev\": {\"identifiers\": [\"k8k1Cx54\"], \"manufacturer\": \"Zendure\", \"model\": \"Solarflow\", \"name\": \"Solarflow Hub\", \"sw_version\": \"3.0.24\"}, \"~\": \"solarflow-hub/k8k1Cx54/telemetry/\", \"availability\": [{\"topic\": \"solarflow-hub/k8k1Cx54/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}, {\"topic\": \"solarflow-hub/bridge/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}], \"availability_mode\": \"all\"}",
+  "homeassistant/sensor/ace-0d9w2UDT-acMode/config": "{\"name\": \"AC Mode\", \"stat_t\": \"~acMode\", \"uniq_id\": \"0d9w2UDT-acMode\", \"value_template\": \"{{ 'Normal' if value=='1' else ('Never Off' if value=='2' else ('Auto Off' if value=='3' else 'Unknown')) }}\", \"dev\": {\"identifiers\": [\"0d9w2UDT\"], \"manufacturer\": \"Zendure\", \"model\": \"Ace\", \"name\": \"Ace 1500\", \"sw_version\": \"1.0.9\"}, \"~\": \"solarflow-hub/0d9w2UDT/telemetry/\", \"availability\": [{\"topic\": \"solarflow-hub/0d9w2UDT/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}, {\"topic\": \"solarflow-hub/bridge/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}], \"availability_mode\": \"all\", \"expire_after\": 600}",
+  "homeassistant/sensor/ace-0d9w2UDT-acOutputPower/config": "{\"name\": \"AC Output Power\", \"stat_t\": \"~acOutputPower\", \"uniq_id\": \"0d9w2UDT-acOutputPower\", \"dev_cla\": \"power\", \"unit_of_meas\": \"W\", \"dev\": {\"identifiers\": [\"0d9w2UDT\"], \"manufacturer\": \"Zendure\", \"model\": \"Ace\", \"name\": \"Ace 1500\", \"sw_version\": \"1.0.9\"}, \"~\": \"solarflow-hub/0d9w2UDT/telemetry/\", \"availability\": [{\"topic\": \"solarflow-hub/0d9w2UDT/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}, {\"topic\": \"solarflow-hub/bridge/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}], \"availability_mode\": \"all\", \"expire_after\": 600}",
+  "homeassistant/sensor/ace-0d9w2UDT-dcOutputPower/config": "{\"name\": \"DC Output Power\", \"stat_t\": \"~dcOutputPower\", \"uniq_id\": \"0d9w2UDT-dcOutputPower\", \"dev_cla\": \"power\", \"unit_of_meas\": \"W\", \"dev\": {\"identifiers\": [\"0d9w2UDT\"], \"manufacturer\": \"Zendure\", \"model\": \"Ace\", \"name\": \"Ace 1500\", \"sw_version\": \"1.0.9\"}, \"~\": \"solarflow-hub/0d9w2UDT/telemetry/\", \"availability\": [{\"topic\": \"solarflow-hub/0d9w2UDT/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}, {\"topic\": \"solarflow-hub/bridge/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}], \"availability_mode\": \"all\", \"expire_after\": 600}",
+  "homeassistant/sensor/ace-0d9w2UDT-gridInputPower/config": "{\"name\": \"Grid Input Power\", \"stat_t\": \"~gridInputPower\", \"uniq_id\": \"0d9w2UDT-gridInputPower\", \"dev_cla\": \"power\", \"unit_of_meas\": \"W\", \"dev\": {\"identifiers\": [\"0d9w2UDT\"], \"manufacturer\": \"Zendure\", \"model\": \"Ace\", \"name\": \"Ace 1500\", \"sw_version\": \"1.0.9\"}, \"~\": \"solarflow-hub/0d9w2UDT/telemetry/\", \"availability\": [{\"topic\": \"solarflow-hub/0d9w2UDT/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}, {\"topic\": \"solarflow-hub/bridge/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}], \"availability_mode\": \"all\", \"expire_after\": 600}",
+  "homeassistant/sensor/ace-0d9w2UDT-outputPackPower/config": "{\"name\": \"Output Pack Power\", \"stat_t\": \"~outputPackPower\", \"uniq_id\": \"0d9w2UDT-outputPackPower\", \"dev_cla\": \"power\", \"unit_of_meas\": \"W\", \"dev\": {\"identifiers\": [\"0d9w2UDT\"], \"manufacturer\": \"Zendure\", \"model\": \"Ace\", \"name\": \"Ace 1500\", \"sw_version\": \"1.0.9\"}, \"~\": \"solarflow-hub/0d9w2UDT/telemetry/\", \"availability\": [{\"topic\": \"solarflow-hub/0d9w2UDT/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}, {\"topic\": \"solarflow-hub/bridge/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}], \"availability_mode\": \"all\", \"expire_after\": 600}",
+  "homeassistant/sensor/ace-0d9w2UDT-packInputPower/config": "{\"name\": \"Pack Input Power\", \"stat_t\": \"~packInputPower\", \"uniq_id\": \"0d9w2UDT-packInputPower\", \"dev_cla\": \"power\", \"unit_of_meas\": \"W\", \"dev\": {\"identifiers\": [\"0d9w2UDT\"], \"manufacturer\": \"Zendure\", \"model\": \"Ace\", \"name\": \"Ace 1500\", \"sw_version\": \"1.0.9\"}, \"~\": \"solarflow-hub/0d9w2UDT/telemetry/\", \"availability\": [{\"topic\": \"solarflow-hub/0d9w2UDT/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}, {\"topic\": \"solarflow-hub/bridge/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}], \"availability_mode\": \"all\", \"expire_after\": 600}",
+  "homeassistant/sensor/ace-0d9w2UDT-packState/config": "{\"name\": \"Pack State\", \"stat_t\": \"~packState\", \"uniq_id\": \"0d9w2UDT-packState\", \"value_template\": \"{{ 'Idle' if value=='0' else ('Charging' if value=='1' else ('Discharging' if value=='2' else ('AC Discharging' if value=='3' else 'Unknown'))) }}\", \"dev\": {\"identifiers\": [\"0d9w2UDT\"], \"manufacturer\": \"Zendure\", \"model\": \"Ace\", \"name\": \"Ace 1500\", \"sw_version\": \"1.0.9\"}, \"~\": \"solarflow-hub/0d9w2UDT/telemetry/\", \"availability\": [{\"topic\": \"solarflow-hub/0d9w2UDT/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}, {\"topic\": \"solarflow-hub/bridge/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}], \"availability_mode\": \"all\", \"expire_after\": 600}",
+  "homeassistant/sensor/ace-0d9w2UDT-solarInputPower/config": "{\"name\": \"Solar Input Power\", \"stat_t\": \"~solarInputPower\", \"uniq_id\": \"0d9w2UDT-solarInputPower\", \"dev_cla\": \"power\", \"unit_of_meas\": \"W\", \"dev\": {\"identifiers\": [\"0d9w2UDT\"], \"manufacturer\": \"Zendure\", \"model\": \"Ace\", \"name\": \"Ace 1500\", \"sw_version\": \"1.0.9\"}, \"~\": \"solarflow-hub/0d9w2UDT/telemetry/\", \"availability\": [{\"topic\": \"solarflow-hub/0d9w2UDT/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}, {\"topic\": \"solarflow-hub/bridge/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}], \"availability_mode\": \"all\", \"expire_after\": 600}",
+  "homeassistant/sensor/ace-0d9w2UDT-solarPower1/config": "{\"name\": \"Solar1 Input Power\", \"stat_t\": \"~solarPower1\", \"uniq_id\": \"0d9w2UDT-solarPower1\", \"dev_cla\": \"power\", \"unit_of_meas\": \"W\", \"dev\": {\"identifiers\": [\"0d9w2UDT\"], \"manufacturer\": \"Zendure\", \"model\": \"Ace\", \"name\": \"Ace 1500\", \"sw_version\": \"1.0.9\"}, \"~\": \"solarflow-hub/0d9w2UDT/telemetry/\", \"availability\": [{\"topic\": \"solarflow-hub/0d9w2UDT/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}, {\"topic\": \"solarflow-hub/bridge/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}], \"availability_mode\": \"all\", \"expire_after\": 600}",
+  "homeassistant/sensor/solarflow-hub-k8k1Cx54-CO4HMEFMF701211-maxTemp/config": "{\"name\": \"Battery 1 Temperature\", \"stat_t\": \"~maxTemp\", \"value_template\": \"{{ (value | float/10 - 273.15) | round(1) }}\", \"uniq_id\": \"k8k1Cx54-CO4HMEFMF701211-maxTemp\", \"unit_of_meas\": \"\\u00b0C\", \"dev_cla\": \"temperature\", \"dev\": {\"identifiers\": [\"k8k1Cx54\"], \"manufacturer\": \"Zendure\", \"model\": \"Solarflow\", \"name\": \"Solarflow Hub\", \"sw_version\": \"3.0.24\"}, \"~\": \"solarflow-hub/k8k1Cx54/telemetry/batteries/CO4HMEFMF701211/\", \"availability\": [{\"topic\": \"solarflow-hub/k8k1Cx54/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}, {\"topic\": \"solarflow-hub/bridge/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}], \"availability_mode\": \"all\", \"expire_after\": 600}",
+  "homeassistant/sensor/solarflow-hub-k8k1Cx54-CO4HMEFMF701211-soh/config": "{\"name\": \"Battery 1 State of Health\", \"stat_t\": \"~soh\", \"value_template\": \"{{ (value | float/10 ) | round(1) }}\", \"uniq_id\": \"k8k1Cx54-CO4HMEFMF701211-soh\", \"unit_of_meas\": \"%\", \"dev\": {\"identifiers\": [\"k8k1Cx54\"], \"manufacturer\": \"Zendure\", \"model\": \"Solarflow\", \"name\": \"Solarflow Hub\", \"sw_version\": \"3.0.24\"}, \"~\": \"solarflow-hub/k8k1Cx54/telemetry/batteries/CO4HMEFMF701211/\", \"availability\": [{\"topic\": \"solarflow-hub/k8k1Cx54/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}, {\"topic\": \"solarflow-hub/bridge/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}], \"availability_mode\": \"all\", \"expire_after\": 600}",
+  "homeassistant/sensor/solarflow-hub-k8k1Cx54-CO4HMEFMF701211-totalVol/config": "{\"name\": \"Battery 1 Voltage\", \"stat_t\": \"~totalVol\", \"value_template\": \"{{ (value | float/100 ) | round(1) }}\", \"uniq_id\": \"k8k1Cx54-CO4HMEFMF701211-totalVol\", \"unit_of_meas\": \"V\", \"dev_cla\": \"voltage\", \"dev\": {\"identifiers\": [\"k8k1Cx54\"], \"manufacturer\": \"Zendure\", \"model\": \"Solarflow\", \"name\": \"Solarflow Hub\", \"sw_version\": \"3.0.24\"}, \"~\": \"solarflow-hub/k8k1Cx54/telemetry/batteries/CO4HMEFMF701211/\", \"availability\": [{\"topic\": \"solarflow-hub/k8k1Cx54/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}, {\"topic\": \"solarflow-hub/bridge/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}], \"availability_mode\": \"all\", \"expire_after\": 600}",
+  "homeassistant/sensor/solarflow-hub-k8k1Cx54-acMode/config": "{\"name\": \"Battery Charge Mode\", \"stat_t\": \"~acMode\", \"uniq_id\": \"k8k1Cx54-acMode\", \"value_template\": \"{{ 'Grid' if value=='1' else ('Solar' if value=='2' else 'Unknown') }}\", \"dev\": {\"identifiers\": [\"k8k1Cx54\"], \"manufacturer\": \"Zendure\", \"model\": \"Solarflow\", \"name\": \"Solarflow Hub\", \"sw_version\": \"3.0.24\"}, \"~\": \"solarflow-hub/k8k1Cx54/telemetry/\", \"availability\": [{\"topic\": \"solarflow-hub/k8k1Cx54/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}, {\"topic\": \"solarflow-hub/bridge/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}], \"availability_mode\": \"all\", \"expire_after\": 600}",
+  "homeassistant/sensor/solarflow-hub-k8k1Cx54-electricLevel/config": "{\"name\": \"Battery Level\", \"stat_t\": \"~electricLevel\", \"bat_lev_t\": \"~electricLevel\", \"uniq_id\": \"k8k1Cx54-electricLevel\", \"dev_cla\": \"battery\", \"unit_of_meas\": \"%\", \"dev\": {\"identifiers\": [\"k8k1Cx54\"], \"manufacturer\": \"Zendure\", \"model\": \"Solarflow\", \"name\": \"Solarflow Hub\", \"sw_version\": \"3.0.24\"}, \"~\": \"solarflow-hub/k8k1Cx54/telemetry/\", \"availability\": [{\"topic\": \"solarflow-hub/k8k1Cx54/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}, {\"topic\": \"solarflow-hub/bridge/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}], \"availability_mode\": \"all\", \"expire_after\": 600}",
+  "homeassistant/sensor/solarflow-hub-k8k1Cx54-inverseMaxPower/config": "{\"name\": \"Max Inverter Output Power\", \"stat_t\": \"~inverseMaxPower\", \"uniq_id\": \"k8k1Cx54-inverseMaxPower\", \"dev_cla\": \"power\", \"unit_of_meas\": \"W\", \"dev\": {\"identifiers\": [\"k8k1Cx54\"], \"manufacturer\": \"Zendure\", \"model\": \"Solarflow\", \"name\": \"Solarflow Hub\", \"sw_version\": \"3.0.24\"}, \"~\": \"solarflow-hub/k8k1Cx54/telemetry/\", \"availability\": [{\"topic\": \"solarflow-hub/k8k1Cx54/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}, {\"topic\": \"solarflow-hub/bridge/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}], \"availability_mode\": \"all\", \"expire_after\": 600}",
+  "homeassistant/sensor/solarflow-hub-k8k1Cx54-minSoc/config": "{\"name\": \"Max Discharge Level\", \"stat_t\": \"~minSoc\", \"value_template\": \"{{ value | multiply(0.1) | round(0) | int }} \", \"uniq_id\": \"k8k1Cx54-minSoc\", \"unit_of_meas\": \"%\", \"dev\": {\"identifiers\": [\"k8k1Cx54\"], \"manufacturer\": \"Zendure\", \"model\": \"Solarflow\", \"name\": \"Solarflow Hub\", \"sw_version\": \"3.0.24\"}, \"~\": \"solarflow-hub/k8k1Cx54/telemetry/\", \"availability\": [{\"topic\": \"solarflow-hub/k8k1Cx54/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}, {\"topic\": \"solarflow-hub/bridge/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}], \"availability_mode\": \"all\", \"expire_after\": 600}",
+  "homeassistant/sensor/solarflow-hub-k8k1Cx54-outputHomePower/config": "{\"name\": \"Output Home Power\", \"stat_t\": \"~outputHomePower\", \"uniq_id\": \"k8k1Cx54-outputHomePower\", \"dev_cla\": \"power\", \"unit_of_meas\": \"W\", \"dev\": {\"identifiers\": [\"k8k1Cx54\"], \"manufacturer\": \"Zendure\", \"model\": \"Solarflow\", \"name\": \"Solarflow Hub\", \"sw_version\": \"3.0.24\"}, \"~\": \"solarflow-hub/k8k1Cx54/telemetry/\", \"availability\": [{\"topic\": \"solarflow-hub/k8k1Cx54/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}, {\"topic\": \"solarflow-hub/bridge/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}], \"availability_mode\": \"all\", \"expire_after\": 600}",
+  "homeassistant/sensor/solarflow-hub-k8k1Cx54-outputLimit/config": "{\"name\": \"Output Limit\", \"stat_t\": \"~outputLimit\", \"uniq_id\": \"k8k1Cx54-outputLimit\", \"dev_cla\": \"power\", \"unit_of_meas\": \"W\", \"dev\": {\"identifiers\": [\"k8k1Cx54\"], \"manufacturer\": \"Zendure\", \"model\": \"Solarflow\", \"name\": \"Solarflow Hub\", \"sw_version\": \"3.0.24\"}, \"~\": \"solarflow-hub/k8k1Cx54/telemetry/\", \"availability\": [{\"topic\": \"solarflow-hub/k8k1Cx54/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}, {\"topic\": \"solarflow-hub/bridge/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}], \"availability_mode\": \"all\", \"expire_after\": 600}",
+  "homeassistant/sensor/solarflow-hub-k8k1Cx54-outputPackPower/config": "{\"name\": \"Output Pack Power\", \"stat_t\": \"~outputPackPower\", \"uniq_id\": \"k8k1Cx54-outputPackPower\", \"dev_cla\": \"power\", \"unit_of_meas\": \"W\", \"dev\": {\"identifiers\": [\"k8k1Cx54\"], \"manufacturer\": \"Zendure\", \"model\": \"Solarflow\", \"name\": \"Solarflow Hub\", \"sw_version\": \"3.0.24\"}, \"~\": \"solarflow-hub/k8k1Cx54/telemetry/\", \"availability\": [{\"topic\": \"solarflow-hub/k8k1Cx54/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}, {\"topic\": \"solarflow-hub/bridge/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}], \"availability_mode\": \"all\", \"expire_after\": 600}",
+  "homeassistant/sensor/solarflow-hub-k8k1Cx54-packInputPower/config": "{\"name\": \"Pack Input Power\", \"stat_t\": \"~packInputPower\", \"uniq_id\": \"k8k1Cx54-packInputPower\", \"dev_cla\": \"power\", \"unit_of_meas\": \"W\", \"dev\": {\"identifiers\": [\"k8k1Cx54\"], \"manufacturer\": \"Zendure\", \"model\": \"Solarflow\", \"name\": \"Solarflow Hub\", \"sw_version\": \"3.0.24\"}, \"~\": \"solarflow-hub/k8k1Cx54/telemetry/\", \"availability\": [{\"topic\": \"solarflow-hub/k8k1Cx54/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}, {\"topic\": \"solarflow-hub/bridge/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}], \"availability_mode\": \"all\", \"expire_after\": 600}",
+  "homeassistant/sensor/solarflow-hub-k8k1Cx54-packNum/config": "{\"name\": \"Batteries\", \"stat_t\": \"~packNum\", \"uniq_id\": \"k8k1Cx54-packNum\", \"dev\": {\"identifiers\": [\"k8k1Cx54\"], \"manufacturer\": \"Zendure\", \"model\": \"Solarflow\", \"name\": \"Solarflow Hub\", \"sw_version\": \"3.0.24\"}, \"~\": \"solarflow-hub/k8k1Cx54/telemetry/\", \"availability\": [{\"topic\": \"solarflow-hub/k8k1Cx54/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}, {\"topic\": \"solarflow-hub/bridge/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}], \"availability_mode\": \"all\", \"expire_after\": 600}",
+  "homeassistant/sensor/solarflow-hub-k8k1Cx54-packState/config": "{\"name\": \"Pack State\", \"stat_t\": \"~packState\", \"uniq_id\": \"k8k1Cx54-packState\", \"value_template\": \"{{ 'Idle' if value=='0' else ('Charging' if value=='1' else ('Discharging' if value=='2' else 'Unknown')) }}\", \"dev\": {\"identifiers\": [\"k8k1Cx54\"], \"manufacturer\": \"Zendure\", \"model\": \"Solarflow\", \"name\": \"Solarflow Hub\", \"sw_version\": \"3.0.24\"}, \"~\": \"solarflow-hub/k8k1Cx54/telemetry/\", \"availability\": [{\"topic\": \"solarflow-hub/k8k1Cx54/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}, {\"topic\": \"solarflow-hub/bridge/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}], \"availability_mode\": \"all\", \"expire_after\": 600}",
+  "homeassistant/sensor/solarflow-hub-k8k1Cx54-passMode/config": "{\"name\": \"Bypass Mode\", \"stat_t\": \"~passMode\", \"uniq_id\": \"k8k1Cx54-passMode\", \"value_template\": \"{{ 'Auto' if value=='0' else ('Manual off' if value=='1' else ('Manual on' if value=='2' else 'Unknown')) }}\", \"dev\": {\"identifiers\": [\"k8k1Cx54\"], \"manufacturer\": \"Zendure\", \"model\": \"Solarflow\", \"name\": \"Solarflow Hub\", \"sw_version\": \"3.0.24\"}, \"~\": \"solarflow-hub/k8k1Cx54/telemetry/\", \"availability\": [{\"topic\": \"solarflow-hub/k8k1Cx54/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}, {\"topic\": \"solarflow-hub/bridge/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}], \"availability_mode\": \"all\", \"expire_after\": 600}",
+  "homeassistant/sensor/solarflow-hub-k8k1Cx54-remainOutTime/config": "{\"name\": \"Remaining Discharging Time\", \"stat_t\": \"~remainOutTime\", \"uniq_id\": \"k8k1Cx54-remainOutTime\", \"dev_cla\": \"duration\", \"unit_of_meas\": \"min\", \"value_template\": \"{{ '0' if value=='59940' else value }}\", \"dev\": {\"identifiers\": [\"k8k1Cx54\"], \"manufacturer\": \"Zendure\", \"model\": \"Solarflow\", \"name\": \"Solarflow Hub\", \"sw_version\": \"3.0.24\"}, \"~\": \"solarflow-hub/k8k1Cx54/telemetry/\", \"availability\": [{\"topic\": \"solarflow-hub/k8k1Cx54/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}, {\"topic\": \"solarflow-hub/bridge/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}], \"availability_mode\": \"all\", \"expire_after\": 600}",
+  "homeassistant/sensor/solarflow-hub-k8k1Cx54-socSet/config": "{\"name\": \"Charge Capacity Limitation\", \"stat_t\": \"~socSet\", \"value_template\": \"{{ value | multiply(0.1) | round(0) | int }} \", \"uniq_id\": \"k8k1Cx54-socSet\", \"unit_of_meas\": \"%\", \"dev\": {\"identifiers\": [\"k8k1Cx54\"], \"manufacturer\": \"Zendure\", \"model\": \"Solarflow\", \"name\": \"Solarflow Hub\", \"sw_version\": \"3.0.24\"}, \"~\": \"solarflow-hub/k8k1Cx54/telemetry/\", \"availability\": [{\"topic\": \"solarflow-hub/k8k1Cx54/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}, {\"topic\": \"solarflow-hub/bridge/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}], \"availability_mode\": \"all\", \"expire_after\": 600}",
+  "homeassistant/sensor/solarflow-hub-k8k1Cx54-solarInputPower/config": "{\"name\": \"Solar Input Power\", \"stat_t\": \"~solarInputPower\", \"uniq_id\": \"k8k1Cx54-solarInputPower\", \"dev_cla\": \"power\", \"unit_of_meas\": \"W\", \"dev\": {\"identifiers\": [\"k8k1Cx54\"], \"manufacturer\": \"Zendure\", \"model\": \"Solarflow\", \"name\": \"Solarflow Hub\", \"sw_version\": \"3.0.24\"}, \"~\": \"solarflow-hub/k8k1Cx54/telemetry/\", \"availability\": [{\"topic\": \"solarflow-hub/k8k1Cx54/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}, {\"topic\": \"solarflow-hub/bridge/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}], \"availability_mode\": \"all\", \"expire_after\": 600}",
+  "homeassistant/sensor/solarflow-hub-k8k1Cx54-solarPower1/config": "{\"name\": \"Solar1 Input Power\", \"stat_t\": \"~solarPower1\", \"uniq_id\": \"k8k1Cx54-solarPower1\", \"dev_cla\": \"power\", \"unit_of_meas\": \"W\", \"dev\": {\"identifiers\": [\"k8k1Cx54\"], \"manufacturer\": \"Zendure\", \"model\": \"Solarflow\", \"name\": \"Solarflow Hub\", \"sw_version\": \"3.0.24\"}, \"~\": \"solarflow-hub/k8k1Cx54/telemetry/\", \"availability\": [{\"topic\": \"solarflow-hub/k8k1Cx54/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}, {\"topic\": \"solarflow-hub/bridge/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}], \"availability_mode\": \"all\", \"expire_after\": 600}",
+  "homeassistant/sensor/solarflow-hub-k8k1Cx54-solarPower2/config": "{\"name\": \"Solar2 Input Power\", \"stat_t\": \"~solarPower2\", \"uniq_id\": \"k8k1Cx54-solarPower2\", \"dev_cla\": \"power\", \"unit_of_meas\": \"W\", \"dev\": {\"identifiers\": [\"k8k1Cx54\"], \"manufacturer\": \"Zendure\", \"model\": \"Solarflow\", \"name\": \"Solarflow Hub\", \"sw_version\": \"3.0.24\"}, \"~\": \"solarflow-hub/k8k1Cx54/telemetry/\", \"availability\": [{\"topic\": \"solarflow-hub/k8k1Cx54/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}, {\"topic\": \"solarflow-hub/bridge/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}], \"availability_mode\": \"all\", \"expire_after\": 600}",
+  "homeassistant/switch/ace-0d9w2UDT-acSwitch/config": "{\"name\": \"AC\", \"cmd_t\": \"iot/8bM93H/0d9w2UDT/properties/write\", \"stat_t\": \"~acSwitch\", \"uniq_id\": \"0d9w2UDT-acSwitch\", \"dev_cla\": \"switch\", \"payload_on\": \"{\\\"properties\\\": {\\\"acSwitch\\\": 1 }}\", \"payload_off\": \"{\\\"properties\\\": {\\\"acSwitch\\\": 0 }}\", \"state_on\": 1, \"state_off\": 0, \"dev\": {\"identifiers\": [\"0d9w2UDT\"], \"manufacturer\": \"Zendure\", \"model\": \"Ace\", \"name\": \"Ace 1500\", \"sw_version\": \"1.0.9\"}, \"~\": \"solarflow-hub/0d9w2UDT/telemetry/\", \"availability\": [{\"topic\": \"solarflow-hub/0d9w2UDT/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}, {\"topic\": \"solarflow-hub/bridge/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}], \"availability_mode\": \"all\"}",
+  "homeassistant/switch/ace-0d9w2UDT-buzzerSwitch/config": "{\"name\": \"Buzzer\", \"cmd_t\": \"iot/8bM93H/0d9w2UDT/properties/write\", \"stat_t\": \"~buzzerSwitch\", \"uniq_id\": \"0d9w2UDT-buzzerSwitch\", \"dev_cla\": \"switch\", \"payload_on\": \"{\\\"properties\\\": {\\\"buzzerSwitch\\\": 1 }}\", \"payload_off\": \"{\\\"properties\\\": {\\\"buzzerSwitch\\\": 0 }}\", \"state_on\": 1, \"state_off\": 0, \"dev\": {\"identifiers\": [\"0d9w2UDT\"], \"manufacturer\": \"Zendure\", \"model\": \"Ace\", \"name\": \"Ace 1500\", \"sw_version\": \"1.0.9\"}, \"~\": \"solarflow-hub/0d9w2UDT/telemetry/\", \"availability\": [{\"topic\": \"solarflow-hub/0d9w2UDT/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}, {\"topic\": \"solarflow-hub/bridge/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}], \"availability_mode\": \"all\"}",
+  "homeassistant/switch/ace-0d9w2UDT-dcSwitch/config": "{\"name\": \"DC\", \"cmd_t\": \"iot/8bM93H/0d9w2UDT/properties/write\", \"stat_t\": \"~dcSwitch\", \"uniq_id\": \"0d9w2UDT-dcSwitch\", \"dev_cla\": \"switch\", \"payload_on\": \"{\\\"properties\\\": {\\\"dcSwitch\\\": 1 }}\", \"payload_off\": \"{\\\"properties\\\": {\\\"dcSwitch\\\": 0 }}\", \"state_on\": 1, \"state_off\": 0, \"dev\": {\"identifiers\": [\"0d9w2UDT\"], \"manufacturer\": \"Zendure\", \"model\": \"Ace\", \"name\": \"Ace 1500\", \"sw_version\": \"1.0.9\"}, \"~\": \"solarflow-hub/0d9w2UDT/telemetry/\", \"availability\": [{\"topic\": \"solarflow-hub/0d9w2UDT/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}, {\"topic\": \"solarflow-hub/bridge/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}], \"availability_mode\": \"all\"}",
+  "homeassistant/switch/ace-0d9w2UDT-masterSwitch/config": "{\"name\": \"Master\", \"cmd_t\": \"iot/8bM93H/0d9w2UDT/properties/write\", \"stat_t\": \"~masterSwitch\", \"uniq_id\": \"0d9w2UDT-masterSwitch\", \"dev_cla\": \"switch\", \"payload_on\": \"{\\\"properties\\\": {\\\"masterSwitch\\\": 1 }}\", \"payload_off\": \"{\\\"properties\\\": {\\\"masterSwitch\\\": 0 }}\", \"state_on\": 1, \"state_off\": 0, \"dev\": {\"identifiers\": [\"0d9w2UDT\"], \"manufacturer\": \"Zendure\", \"model\": \"Ace\", \"name\": \"Ace 1500\", \"sw_version\": \"1.0.9\"}, \"~\": \"solarflow-hub/0d9w2UDT/telemetry/\", \"availability\": [{\"topic\": \"solarflow-hub/0d9w2UDT/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}, {\"topic\": \"solarflow-hub/bridge/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}], \"availability_mode\": \"all\"}",
+  "homeassistant/switch/solarflow-hub-k8k1Cx54-acMode/config": "{\"name\": \"Charge via Grid\", \"cmd_t\": \"iot/A8yh63/k8k1Cx54/properties/write\", \"stat_t\": \"~acMode\", \"uniq_id\": \"k8k1Cx54-acMode\", \"dev_cla\": \"switch\", \"payload_on\": \"{\\\"properties\\\": {\\\"acMode\\\": 1 }}\", \"payload_off\": \"{\\\"properties\\\": {\\\"acMode\\\": 2 }}\", \"state_on\": 1, \"state_off\": 2, \"dev\": {\"identifiers\": [\"k8k1Cx54\"], \"manufacturer\": \"Zendure\", \"model\": \"Solarflow\", \"name\": \"Solarflow Hub\", \"sw_version\": \"3.0.24\"}, \"~\": \"solarflow-hub/k8k1Cx54/telemetry/\", \"availability\": [{\"topic\": \"solarflow-hub/k8k1Cx54/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}, {\"topic\": \"solarflow-hub/bridge/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}], \"availability_mode\": \"all\"}",
+  "homeassistant/switch/solarflow-hub-k8k1Cx54-autoRecover/config": "{\"name\": \"Automatic Bypass recovery\", \"cmd_t\": \"iot/A8yh63/k8k1Cx54/properties/write\", \"stat_t\": \"~autoRecover\", \"uniq_id\": \"k8k1Cx54-autoRecover\", \"dev_cla\": \"switch\", \"payload_on\": \"{\\\"properties\\\": {\\\"autoRecover\\\": 1 }}\", \"payload_off\": \"{\\\"properties\\\": {\\\"autoRecover\\\": 0 }}\", \"state_on\": 1, \"state_off\": 0, \"dev\": {\"identifiers\": [\"k8k1Cx54\"], \"manufacturer\": \"Zendure\", \"model\": \"Solarflow\", \"name\": \"Solarflow Hub\", \"sw_version\": \"3.0.24\"}, \"~\": \"solarflow-hub/k8k1Cx54/telemetry/\", \"availability\": [{\"topic\": \"solarflow-hub/k8k1Cx54/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}, {\"topic\": \"solarflow-hub/bridge/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}], \"availability_mode\": \"all\"}",
+  "homeassistant/switch/solarflow-hub-k8k1Cx54-buzzerSwitch/config": "{\"name\": \"Buzzer\", \"cmd_t\": \"iot/A8yh63/k8k1Cx54/properties/write\", \"stat_t\": \"~buzzerSwitch\", \"uniq_id\": \"k8k1Cx54-buzzerSwitch\", \"dev_cla\": \"switch\", \"payload_on\": \"{\\\"properties\\\": {\\\"buzzerSwitch\\\": 1 }}\", \"payload_off\": \"{\\\"properties\\\": {\\\"buzzerSwitch\\\": 0 }}\", \"state_on\": 1, \"state_off\": 0, \"dev\": {\"identifiers\": [\"k8k1Cx54\"], \"manufacturer\": \"Zendure\", \"model\": \"Solarflow\", \"name\": \"Solarflow Hub\", \"sw_version\": \"3.0.24\"}, \"~\": \"solarflow-hub/k8k1Cx54/telemetry/\", \"availability\": [{\"topic\": \"solarflow-hub/k8k1Cx54/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}, {\"topic\": \"solarflow-hub/bridge/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}], \"availability_mode\": \"all\"}",
+  "homeassistant/switch/solarflow-hub-k8k1Cx54-masterSwitch/config": "{\"name\": \"Master\", \"cmd_t\": \"iot/A8yh63/k8k1Cx54/properties/write\", \"stat_t\": \"~masterSwitch\", \"uniq_id\": \"k8k1Cx54-masterSwitch\", \"dev_cla\": \"switch\", \"payload_on\": \"{\\\"properties\\\": {\\\"masterSwitch\\\": 1 }}\", \"payload_off\": \"{\\\"properties\\\": {\\\"masterSwitch\\\": 0 }}\", \"state_on\": 1, \"state_off\": 0, \"dev\": {\"identifiers\": [\"k8k1Cx54\"], \"manufacturer\": \"Zendure\", \"model\": \"Solarflow\", \"name\": \"Solarflow Hub\", \"sw_version\": \"3.0.24\"}, \"~\": \"solarflow-hub/k8k1Cx54/telemetry/\", \"availability\": [{\"topic\": \"solarflow-hub/k8k1Cx54/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}, {\"topic\": \"solarflow-hub/bridge/availability\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\"}], \"availability_mode\": \"all\"}"
+ },
+ "fw": [
+  "3.0.24",
+  "1.0.9"
+ ],
+ "telemetry": [
+  [
+   "solarflow-hub/0d9w2UDT/telemetry/acDelay",
+   "10",
+   false
+  ],
+  [
+   "solarflow-hub/0d9w2UDT/telemetry/acMode",
+   "2",
+   false
+  ],
+  [
+   "solarflow-hub/0d9w2UDT/telemetry/acOutputPower",
+   "0",
+   false
+  ],
+  [
+   "solarflow-hub/0d9w2UDT/telemetry/acSwitch",
+   "1",
+   false
+  ],
+  [
+   "solarflow-hub/0d9w2UDT/telemetry/buzzerSwitch",
+   "0",
+   false
+  ],
+  [
+   "solarflow-hub/0d9w2UDT/telemetry/dcOutputPower",
+   "0",
+   false
+  ],
+  [
+   "solarflow-hub/0d9w2UDT/telemetry/dcSwitch",
+   "0",
+   false
+  ],
+  [
+   "solarflow-hub/0d9w2UDT/telemetry/gridInputPower",
+   "0",
+   false
+  ],
+  [
+   "solarflow-hub/0d9w2UDT/telemetry/masterSoftVersion",
+   "4105",
+   false
+  ],
+  [
+   "solarflow-hub/0d9w2UDT/telemetry/masterSwitch",
+   "1",
+   false
+  ],
+  [
+   "solarflow-hub/0d9w2UDT/telemetry/outputPackPower",
+   "0",
+   false
+  ],
+  [
+   "solarflow-hub/0d9w2UDT/telemetry/packInputPower",
+   "0",
+   false
+  ],
+  [
+   "solarflow-hub/0d9w2UDT/telemetry/packState",
+   "0",
+   false
+  ],
+  [
+   "solarflow-hub/0d9w2UDT/telemetry/solarInputPower",
+   "0",
+   false
+  ],
+  [
+   "solarflow-hub/0d9w2UDT/telemetry/solarPower1",
+   "0",
+   false
+  ],
+  [
+   "solarflow-hub/k8k1Cx54/telemetry/acMode",
+   "1",
+   false
+  ],
+  [
+   "solarflow-hub/k8k1Cx54/telemetry/autoRecover",
+   "1",
+   false
+  ],
+  [
+   "solarflow-hub/k8k1Cx54/telemetry/batteries/CO4HMEFMF701211/maxTemp",
+   "2951",
+   false
+  ],
+  [
+   "solarflow-hub/k8k1Cx54/telemetry/batteries/CO4HMEFMF701211/maxVol",
+   "321",
+   false
+  ],
+  [
+   "solarflow-hub/k8k1Cx54/telemetry/batteries/CO4HMEFMF701211/minVol",
+   "319",
+   false
+  ],
+  [
+   "solarflow-hub/k8k1Cx54/telemetry/batteries/CO4HMEFMF701211/socLevel",
+   "57",
+   false
+  ],
+  [
+   "solarflow-hub/k8k1Cx54/telemetry/batteries/CO4HMEFMF701211/soh",
+   "1000",
+   false
+  ],
+  [
+   "solarflow-hub/k8k1Cx54/telemetry/batteries/CO4HMEFMF701211/totalVol",
+   "5120",
+   false
+  ],
+  [
+   "solarflow-hub/k8k1Cx54/telemetry/buzzerSwitch",
+   "0",
+   false
+  ],
+  [
+   "solarflow-hub/k8k1Cx54/telemetry/electricLevel",
+   "57",
+   false
+  ],
+  [
+   "solarflow-hub/k8k1Cx54/telemetry/hubState",
+   "0",
+   false
+  ],
+  [
+   "solarflow-hub/k8k1Cx54/telemetry/inputLimit",
+   "0",
+   false
+  ],
+  [
+   "solarflow-hub/k8k1Cx54/telemetry/inverseMaxPower",
+   "800",
+   false
+  ],
+  [
+   "solarflow-hub/k8k1Cx54/telemetry/masterSoftVersion",
+   "12312",
+   false
+  ],
+  [
+   "solarflow-hub/k8k1Cx54/telemetry/minSoc",
+   "100",
+   false
+  ],
+  [
+   "solarflow-hub/k8k1Cx54/telemetry/outputHomePower",
+   "120",
+   false
+  ],
+  [
+   "solarflow-hub/k8k1Cx54/telemetry/outputLimit",
+   "120",
+   false
+  ],
+  [
+   "solarflow-hub/k8k1Cx54/telemetry/outputPackPower",
+   "220",
+   false
+  ],
+  [
+   "solarflow-hub/k8k1Cx54/telemetry/packInputPower",
+   "0",
+   false
+  ],
+  [
+   "solarflow-hub/k8k1Cx54/telemetry/packNum",
+   "1",
+   false
+  ],
+  [
+   "solarflow-hub/k8k1Cx54/telemetry/packState",
+   "1",
+   false
+  ],
+  [
+   "solarflow-hub/k8k1Cx54/telemetry/pass",
+   "0",
+   false
+  ],
+  [
+   "solarflow-hub/k8k1Cx54/telemetry/passMode",
+   "0",
+   false
+  ],
+  [
+   "solarflow-hub/k8k1Cx54/telemetry/remainOutTime",
+   "59940",
+   false
+  ],
+  [
+   "solarflow-hub/k8k1Cx54/telemetry/socSet",
+   "1000",
+   false
+  ],
+  [
+   "solarflow-hub/k8k1Cx54/telemetry/solarInputPower",
+   "340",
+   false
+  ],
+  [
+   "solarflow-hub/k8k1Cx54/telemetry/solarPower1",
+   "170",
+   false
+  ],
+  [
+   "solarflow-hub/k8k1Cx54/telemetry/solarPower2",
+   "170",
+   false
+  ],
+  [
+   "solarflow-hub/k8k1Cx54/telemetry/wifiState",
+   "1",
+   false
+  ]
+ ]
+}
