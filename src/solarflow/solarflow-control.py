@@ -247,7 +247,7 @@ def main(argv):
     if mqtt_user is None or mqtt_pwd is None:
         log.info(f'MQTT User is not set, assuming authentication not needed')
     else:
-        log.info(f'MQTT User: {mqtt_user}/{mqtt_pwd}')
+        log.info(f'MQTT User: {mqtt_user}')
 
     if sf_device_id is None:
         log.error(f'You need to provide a SF_DEVICE_ID (environment variable SF_DEVICE_ID or option --device)!')
