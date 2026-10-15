@@ -38,6 +38,7 @@ class Device:
     name = 'Device'          # used in log lines
     template_dir = ''        # subdirectory of homeassistant/
     discovery_prefix = ''    # object id prefix of the discovery topics
+    version_keys = ('masterSoftVersion',)  # report properties holding the firmware, first wins
 
     def __init__(self, client, product_id: str, device_id: str, telemetry_polling_enabled: bool = True):
         self.client = client
@@ -173,9 +174,10 @@ class Device:
         if isinstance(properties, dict):
             for prop, value in properties.items():
                 self.client.publish(f'{self.telemetryPrefix}/{prop}', mqtt_payload(value))
-            if 'masterSoftVersion' in properties:
+            key = next((k for k in self.version_keys if k in properties), None)
+            if key:
                 try:
-                    self.fwVersion = firmware_version(properties['masterSoftVersion'])
+                    self.fwVersion = firmware_version(properties[key])
                 except (TypeError, ValueError):
-                    log.warning(f'{self.name}: unexpected masterSoftVersion {properties["masterSoftVersion"]!r}')
+                    log.warning(f'{self.name}: unexpected {key} {properties[key]!r}')
             self.markAlive()

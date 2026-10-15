@@ -93,6 +93,21 @@ class TransportTest(unittest.TestCase):
         self.assertEqual(self.hub.fwVersion, 'unknown')
         self.assertEqual(self.hub.batterySerials, ['S1'])
 
+    def test_ace_prefers_master_firmware_version(self):
+        report = {'properties': {'masterFirmwareVersion': 4110, 'masterSoftVersion': 4105}}
+        self.deliver(report_topic('ace'), json.dumps(report))
+        self.assertEqual(self.ace.fwVersion, '1.0.14')
+        self.client.published = []
+        self.ace.pushHomeassistantConfig()
+        configs = [json.loads(p) for _, p, retain in self.client.published if retain and p]
+        self.assertTrue(configs)
+        self.assertEqual({c['dev']['sw_version'] for c in configs}, {'1.0.14'})
+
+    def test_hub_keeps_master_soft_version(self):
+        report = {'properties': {'masterFirmwareVersion': 4110, 'masterSoftVersion': 12312}}
+        self.deliver(report_topic('hub'), json.dumps(report))
+        self.assertEqual(self.hub.fwVersion, '3.0.24')
+
     def test_other_topics_are_ignored(self):
         self.deliver('solarflow-hub/k8k1Cx54/telemetry/electricLevel', '57')
         self.deliver('/A8yh63/OTHER/properties/report', json.dumps(FIXTURES['hub']['report']))
